@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="UTF-8"?><?xml-stylesheet type='text/xsl' href='_UpgradeReport_Files/UpgradeReport.xslt'?><UpgradeLog>
+<Properties><Property Name="Solution" Value="UvsChess">
+</Property><Property Name="Solution File" Value="C:\Users\Owner\Dropbox\Homework\CS 4470\Chess\uvschess-1.0.2\UvsChess.sln">
+</Property><Property Name="Date" Value="Wednesday, October 03, 2012">
+</Property><Property Name="Time" Value="14:10 PM">
+</Property></Properties><Event ErrorLevel="0" Project="Framework" Source="Framework\Framework.csproj" Description="Project converted successfully">
+</Event><Event ErrorLevel="3" Project="Framework" Source="Framework\Framework.csproj" Description="Converted">
+</Event><Event ErrorLevel="0" Project="ExampleAI" Source="ExampleAI\ExampleAI.csproj" Description="Project converted successfully">
+</Event><Event ErrorLevel="3" Project="ExampleAI" Source="ExampleAI\ExampleAI.csproj" Description="Converted">
+</Event><Event ErrorLevel="0" Project="StudentAI" Source="StudentAI\StudentAI.csproj" Description="Project converted successfully">
+</Event><Event ErrorLevel="3" Project="StudentAI" Source="StudentAI\StudentAI.csproj" Description="Converted">
+</Event><Event ErrorLevel="0" Project="" Source="UvsChess.sln" Description="Solution converted successfully">
+</Event><Event ErrorLevel="3" Project="" Source="UvsChess.sln" Description="Converted">
+</Event><Event ErrorLevel="0" Project="Framework" Source="Framework\Framework.csproj" Description="Scan complete: Upgrade not required for project files.">
+</Event><Event ErrorLevel="0" Project="ExampleAI" Source="ExampleAI\ExampleAI.csproj" Description="Scan complete: Upgrade not required for project files.">
+</Event><Event ErrorLevel="0" Project="StudentAI" Source="StudentAI\StudentAI.csproj" Description="Scan complete: Upgrade not required for project files.">
+</Event></UpgradeLog>
