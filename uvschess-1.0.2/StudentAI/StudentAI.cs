@@ -256,106 +256,125 @@ namespace StudentAI
 
 			// lookup up two and left
 			if (currentBoard[x - 2,y - 1] == ChessPiece.Empty && (x-2) >= 0 && (y-1) >= 0)
-				allMoves.Add(new ChessMove(new ChessLocation(x-2, y-1), new ChessLocation(x-2, y-1)));
+                if (IsOpponentPiece(currentBoard[x - 2, y -1], myColor))
+                {
+                    allMoves.Add(new ChessMove(new ChessLocation(x, y), new ChessLocation(x - 2, y - 1)));
+                }
+
 
 			// lookup up one and left two
 			if (currentBoard[x - 1,y - 2] == ChessPiece.Empty && (x-1) >= 0 && (y-2) >= 0)
-				allMoves.Add(new ChessMove(new ChessLocation(x-1, y-2), new ChessLocation(x-1, y-2)));
+                if (IsOpponentPiece(currentBoard[x - 1, y - 2], myColor))
+                {
+                    allMoves.Add(new ChessMove(new ChessLocation(x, y), new ChessLocation(x - 1, y - 2)));
+                }
 
-			// lookup down one and left one
+			// lookup up two and right one
 			if (currentBoard[x - 2,y + 1] == ChessPiece.Empty && (x-2) <= 0 && (y+1) < ChessBoard.NumberOfRows)
-				allMoves.Add(new ChessMove(new ChessLocation(x-2, y+1), new ChessLocation(x-2, y+1)));
+                if (IsOpponentPiece(currentBoard[x - 2, y + 1], myColor))
+                {
+                    allMoves.Add(new ChessMove(new ChessLocation(x, y), new ChessLocation(x - 2, y + 1)));
+                }
 
-			// lookup down one and left two
+			
+            // lookup down one and right two
 			if (currentBoard[x - 1,y + 2] == ChessPiece.Empty && (x-1) >= 0 && (y+2) < ChessBoard.NumberOfRows)
-				allMoves.Add(new ChessMove(new ChessLocation(x-1, y+2), new ChessLocation(x-1, y+2)));
+                if (IsOpponentPiece(currentBoard[x - 1, y + 2], myColor))
+                {
+                    allMoves.Add(new ChessMove(new ChessLocation(x, y), new ChessLocation(x - 1, y + 2)));
+                }
 		
-			// lookup up two and right
+			// lookup down two and left
 			if (currentBoard[x + 2,y - 1] == ChessPiece.Empty && (x + 2) < ChessBoard.NumberOfColumns && (y-1) >= 0)
-				allMoves.Add(new ChessMove(new ChessLocation(x + 2, y - 1), new ChessLocation(x+2, y-1)));
+                if (IsOpponentPiece(currentBoard[x + 2, y - 1], myColor))
+                {
+                    allMoves.Add(new ChessMove(new ChessLocation(x, y), new ChessLocation(x + 2, y - 1)));
+                }
 
-			// lookup up one and right two
+			// lookup down and left two
 			if (currentBoard[x + 1,y - 2] == ChessPiece.Empty && (x+1) < ChessBoard.NumberOfColumns  && (y-2) >= 0)
-				allMoves.Add(new ChessMove(new ChessLocation(x+1, y-2), new ChessLocation(x+1, y-2)));
+                if (IsOpponentPiece(currentBoard[x + 1, y - 2], myColor))
+                {
+                    allMoves.Add(new ChessMove(new ChessLocation(x, y), new ChessLocation(x + 1, y - 2)));
+                }
 
 			// lookup down one and right one
-			if (currentBoard[x + 2,y + 1] == ChessPiece.Empty && x < ChessBoard.NumberOfColumns && (y+1) < ChessBoard.NumberOfRows)
-				allMoves.Add(new ChessMove(new ChessLocation(x+2, y+1), new ChessLocation(x+2, y+1)));
+			if (currentBoard[x + 2,y + 1] == ChessPiece.Empty && x + 2 < ChessBoard.NumberOfColumns && (y+1) < ChessBoard.NumberOfRows)
+                if (IsOpponentPiece(currentBoard[x + 2, y + 1], myColor))
+                {
+                    allMoves.Add(new ChessMove(new ChessLocation(x, y), new ChessLocation(x + 2, y + 1)));
+                }
 
 			// lookup down one and right two
-			if (currentBoard[x + 1,y + 2] == ChessPiece.Empty && x < ChessBoard.NumberOfColumns && (y+2) < ChessBoard.NumberOfRows)
-				allMoves.Add(new ChessMove(new ChessLocation(x+1, y+2), new ChessLocation(x+1, y+2)));
+			if (currentBoard[x + 1,y + 2] == ChessPiece.Empty && x + 1 < ChessBoard.NumberOfColumns && (y+2) < ChessBoard.NumberOfRows)
+                if (IsOpponentPiece(currentBoard[x + 1, y + 2], myColor))
+                {
+                    allMoves.Add(new ChessMove(new ChessLocation(x, y), new ChessLocation(x + 1, y + 2)));
+                }
 
-			// lookup down two and left
-			if (currentBoard[x - 2,y + 1] == ChessPiece.Empty && (x-2) >= 0 && (y+1) < ChessBoard.NumberOfRows)
-				allMoves.Add(new ChessMove(new ChessLocation(x-2, y+1), new ChessLocation(x-2, y+1)));
 
-			// lookup down one and left two
-			if (currentBoard[x - 1,y + 2] == ChessPiece.Empty && (x-1) >= 0 && (y+2) < ChessBoard.NumberOfRows)
-				allMoves.Add(new ChessMove(new ChessLocation(x-1, y+2), new ChessLocation(x-1, y+2)));
-
-			// lookup up one and left one
-			if (currentBoard[x - 2,y - 1] == ChessPiece.Empty && (x-2) <= 0 && (y-1) >= 0)
-				allMoves.Add(new ChessMove(new ChessLocation(x-2, y-1), new ChessLocation(x-2, y-1)));
-
-			// lookup up one and left two
-			if (currentBoard[x - 1,y - 2] == ChessPiece.Empty && (x-1) >= 0 && (y-2) >= 0)
-				allMoves.Add(new ChessMove(new ChessLocation(x-1, y-2), new ChessLocation(x-1, y-2)));
-		
-			// lookup down two and right
-			if (currentBoard[x + 2,y + 1] == ChessPiece.Empty && (x + 2) < ChessBoard.NumberOfColumns && (y+1) < ChessBoard.NumberOfRows)
-				allMoves.Add(new ChessMove(new ChessLocation(x + 2, y + 1), new ChessLocation(x+2, y+1)));
-
-			// lookup down one and right two
-			if (currentBoard[x + 1,y + 2] == ChessPiece.Empty && (x+1) < ChessBoard.NumberOfColumns  && (y+2) < ChessBoard.NumberOfRows)
-				allMoves.Add(new ChessMove(new ChessLocation(x+1, y+2), new ChessLocation(x+1, y+2)));
-
-			// lookup up one and right one
-			if (currentBoard[x + 2,y - 1] == ChessPiece.Empty && x < ChessBoard.NumberOfColumns && (y-1) >= 0)
-				allMoves.Add(new ChessMove(new ChessLocation(x+2, y-1), new ChessLocation(x+2, y-1)));
-
-			// lookup up one and right two
-			if (currentBoard[x + 1,y - 2] == ChessPiece.Empty && x < ChessBoard.NumberOfColumns && (y-2) >= 0)
-				allMoves.Add(new ChessMove(new ChessLocation(x+1, y-2), new ChessLocation(x+1, y-2)));
-
-            	
-
- 
         }
         public void AddAllPossibleMovesKing(ref List<ChessMove> allMoves, ref ChessBoard currentBoard, ChessColor myColor, int x, int y)
         {
 
 			// lookup up and left one
 			if (currentBoard[x - 1,y - 1] == ChessPiece.Empty && (x-1) >= 0 && (y-1) >= 0)
-				allMoves.Add(new ChessMove(new ChessLocation(x-1, y-1), new ChessLocation(x-1, y-1)));
+                if (IsOpponentPiece(currentBoard[x - 1, y - 1], myColor))
+                {
+                    allMoves.Add(new ChessMove(new ChessLocation(x, y), new ChessLocation(x - 1, y - 1)));
+                }
+
 
 			// lookup up one
 			if (currentBoard[x - 1,y] == ChessPiece.Empty && (x-1) >= 0)
-				allMoves.Add(new ChessMove(new ChessLocation(x-1, y), new ChessLocation(x-1, y-2)));
+                if (IsOpponentPiece(currentBoard[x - 1, y], myColor))
+                {
+                    allMoves.Add(new ChessMove(new ChessLocation(x, y), new ChessLocation(x - 1, y)));
+                }
 
             // lookup up one and right
             if (currentBoard[x - 1, y + 1] == ChessPiece.Empty && (x - 1) >= 0 && (y + 1) < ChessBoard.NumberOfRows)
-				allMoves.Add(new ChessMove(new ChessLocation(x-1, y+1), new ChessLocation(x-1, y+1)));
+                if (IsOpponentPiece(currentBoard[x - 1, y + 1], myColor))
+                {
+                    allMoves.Add(new ChessMove(new ChessLocation(x,y), new ChessLocation(x - 1, y + 1)));
+                }
 
 			// lookup down and left one
 			if (currentBoard[x + 1,y - 1] == ChessPiece.Empty && (x+1) >= 0 && (y-1) >= 0)
-				allMoves.Add(new ChessMove(new ChessLocation(x+1, y-1), new ChessLocation(x+1, y-1)));
+                if (IsOpponentPiece(currentBoard[x + 1, y - 1], myColor))
+                {
+                    allMoves.Add(new ChessMove(new ChessLocation(x,y), new ChessLocation(x + 1, y - 1)));
+                }
 
 			// lookup down one
 			if (currentBoard[x + 1,y] == ChessPiece.Empty && (x+1) >= 0)
-				allMoves.Add(new ChessMove(new ChessLocation(x+1, y), new ChessLocation(x+1, y-2)));
+                if (IsOpponentPiece(currentBoard[x + 1, y], myColor))
+                {
+                    allMoves.Add(new ChessMove(new ChessLocation(x, y), new ChessLocation(x + 1, y)));
+                }
 
             // lookup down one and right
-            if (currentBoard[x + 1, y + 1] == ChessPiece.Empty && (x + 1) >= 0 && (y + 1) < ChessBoard.NumberOfRows)
-				allMoves.Add(new ChessMove(new ChessLocation(x+1, y+1), new ChessLocation(x+1, y+1)));
+            if (currentBoard[x + 1, y + 1] == ChessPiece.Empty && (x + 1) < ChessBoard.NumberOfColumns&& (y + 1) < ChessBoard.NumberOfRows)
+                if (IsOpponentPiece(currentBoard[x + 1, y + 1], myColor))
+                {
+                    allMoves.Add(new ChessMove(new ChessLocation(x, y), new ChessLocation(x + 1, y + 1)));
+                }
 
-            // lookup right
+            // look right
             if (currentBoard[x, y + 1] == ChessPiece.Empty && (y + 1) < ChessBoard.NumberOfRows)
-                allMoves.Add(new ChessMove(new ChessLocation(x, y + 1), new ChessLocation(x, y + 1)));
+                if (IsOpponentPiece(currentBoard[x, y + 1], myColor))
+                {
+                allMoves.Add(new ChessMove(new ChessLocation(x,y), new ChessLocation(x, y + 1)));
+                }
+   
 
-            // lookup left
+
+            // look left
             if (currentBoard[x, y - 1] == ChessPiece.Empty && (y - 1) >= 0)
-                allMoves.Add(new ChessMove(new ChessLocation(x, y - 1), new ChessLocation(x, y - 1)));	
+                if (IsOpponentPiece(currentBoard[x, y - 1], myColor))
+                {
+                    allMoves.Add(new ChessMove(new ChessLocation(x, y), new ChessLocation(x, y - 1)));
+                }
         }
 
         /// <summary>
