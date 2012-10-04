@@ -243,6 +243,122 @@ namespace StudentAI
 		}
 
         /// <summary>
+        /// This function discovers all possible moves for a Knight from the specified location and adds the moves to the list
+        /// <summary>
+        /// <param name="allMoves">A possibly non-empty list that will have all possible moves appended to it
+        /// <param name="currentBoard">The current board state
+        /// <param name="myColor">The color of the player whos moving
+        /// <param name="x">The bishops x location on the board
+        /// <param name="y">The bishops y location on the board
+        ///
+        public void AddAllPossibleMovesKnight(ref List<ChessMove> allMoves, ref ChessBoard currentBoard, ChessColor myColor, int x, int y)
+        {
+
+			// lookup up two and left
+			if (currentBoard[x - 2,y - 1] == ChessPiece.Empty && (x-2) >= 0 && (y-1) >= 0)
+				allMoves.Add(new ChessMove(new ChessLocation(x-2, y-1), new ChessLocation(x-2, y-1)));
+
+			// lookup up one and left two
+			if (currentBoard[x - 1,y - 2] == ChessPiece.Empty && (x-1) >= 0 && (y-2) >= 0)
+				allMoves.Add(new ChessMove(new ChessLocation(x-1, y-2), new ChessLocation(x-1, y-2)));
+
+			// lookup down one and left one
+			if (currentBoard[x - 2,y + 1] == ChessPiece.Empty && (x-2) <= 0 && (y+1) < ChessBoard.NumberOfRows)
+				allMoves.Add(new ChessMove(new ChessLocation(x-2, y+1), new ChessLocation(x-2, y+1)));
+
+			// lookup down one and left two
+			if (currentBoard[x - 1,y + 2] == ChessPiece.Empty && (x-1) >= 0 && (y+2) < ChessBoard.NumberOfRows)
+				allMoves.Add(new ChessMove(new ChessLocation(x-1, y+2), new ChessLocation(x-1, y+2)));
+		
+			// lookup up two and right
+			if (currentBoard[x + 2,y - 1] == ChessPiece.Empty && (x + 2) < ChessBoard.NumberOfColumns && (y-1) >= 0)
+				allMoves.Add(new ChessMove(new ChessLocation(x + 2, y - 1), new ChessLocation(x+2, y-1)));
+
+			// lookup up one and right two
+			if (currentBoard[x + 1,y - 2] == ChessPiece.Empty && (x+1) < ChessBoard.NumberOfColumns  && (y-2) >= 0)
+				allMoves.Add(new ChessMove(new ChessLocation(x+1, y-2), new ChessLocation(x+1, y-2)));
+
+			// lookup down one and right one
+			if (currentBoard[x + 2,y + 1] == ChessPiece.Empty && x < ChessBoard.NumberOfColumns && (y+1) < ChessBoard.NumberOfRows)
+				allMoves.Add(new ChessMove(new ChessLocation(x+2, y+1), new ChessLocation(x+2, y+1)));
+
+			// lookup down one and right two
+			if (currentBoard[x + 1,y + 2] == ChessPiece.Empty && x < ChessBoard.NumberOfColumns && (y+2) < ChessBoard.NumberOfRows)
+				allMoves.Add(new ChessMove(new ChessLocation(x+1, y+2), new ChessLocation(x+1, y+2)));
+
+			// lookup down two and left
+			if (currentBoard[x - 2,y + 1] == ChessPiece.Empty && (x-2) >= 0 && (y+1) < ChessBoard.NumberOfRows)
+				allMoves.Add(new ChessMove(new ChessLocation(x-2, y+1), new ChessLocation(x-2, y+1)));
+
+			// lookup down one and left two
+			if (currentBoard[x - 1,y + 2] == ChessPiece.Empty && (x-1) >= 0 && (y+2) < ChessBoard.NumberOfRows)
+				allMoves.Add(new ChessMove(new ChessLocation(x-1, y+2), new ChessLocation(x-1, y+2)));
+
+			// lookup up one and left one
+			if (currentBoard[x - 2,y - 1] == ChessPiece.Empty && (x-2) <= 0 && (y-1) >= 0)
+				allMoves.Add(new ChessMove(new ChessLocation(x-2, y-1), new ChessLocation(x-2, y-1)));
+
+			// lookup up one and left two
+			if (currentBoard[x - 1,y - 2] == ChessPiece.Empty && (x-1) >= 0 && (y-2) >= 0)
+				allMoves.Add(new ChessMove(new ChessLocation(x-1, y-2), new ChessLocation(x-1, y-2)));
+		
+			// lookup down two and right
+			if (currentBoard[x + 2,y + 1] == ChessPiece.Empty && (x + 2) < ChessBoard.NumberOfColumns && (y+1) < ChessBoard.NumberOfRows)
+				allMoves.Add(new ChessMove(new ChessLocation(x + 2, y + 1), new ChessLocation(x+2, y+1)));
+
+			// lookup down one and right two
+			if (currentBoard[x + 1,y + 2] == ChessPiece.Empty && (x+1) < ChessBoard.NumberOfColumns  && (y+2) < ChessBoard.NumberOfRows)
+				allMoves.Add(new ChessMove(new ChessLocation(x+1, y+2), new ChessLocation(x+1, y+2)));
+
+			// lookup up one and right one
+			if (currentBoard[x + 2,y - 1] == ChessPiece.Empty && x < ChessBoard.NumberOfColumns && (y-1) >= 0)
+				allMoves.Add(new ChessMove(new ChessLocation(x+2, y-1), new ChessLocation(x+2, y-1)));
+
+			// lookup up one and right two
+			if (currentBoard[x + 1,y - 2] == ChessPiece.Empty && x < ChessBoard.NumberOfColumns && (y-2) >= 0)
+				allMoves.Add(new ChessMove(new ChessLocation(x+1, y-2), new ChessLocation(x+1, y-2)));
+
+            	
+
+ 
+        }
+        public void AddAllPossibleMovesKing(ref List<ChessMove> allMoves, ref ChessBoard currentBoard, ChessColor myColor, int x, int y)
+        {
+
+			// lookup up and left one
+			if (currentBoard[x - 1,y - 1] == ChessPiece.Empty && (x-1) >= 0 && (y-1) >= 0)
+				allMoves.Add(new ChessMove(new ChessLocation(x-1, y-1), new ChessLocation(x-1, y-1)));
+
+			// lookup up one
+			if (currentBoard[x - 1,y] == ChessPiece.Empty && (x-1) >= 0)
+				allMoves.Add(new ChessMove(new ChessLocation(x-1, y), new ChessLocation(x-1, y-2)));
+
+            // lookup up one and right
+            if (currentBoard[x - 1, y + 1] == ChessPiece.Empty && (x - 1) >= 0 && (y + 1) < ChessBoard.NumberOfRows)
+				allMoves.Add(new ChessMove(new ChessLocation(x-1, y+1), new ChessLocation(x-1, y+1)));
+
+			// lookup down and left one
+			if (currentBoard[x + 1,y - 1] == ChessPiece.Empty && (x+1) >= 0 && (y-1) >= 0)
+				allMoves.Add(new ChessMove(new ChessLocation(x+1, y-1), new ChessLocation(x+1, y-1)));
+
+			// lookup down one
+			if (currentBoard[x + 1,y] == ChessPiece.Empty && (x+1) >= 0)
+				allMoves.Add(new ChessMove(new ChessLocation(x+1, y), new ChessLocation(x+1, y-2)));
+
+            // lookup down one and right
+            if (currentBoard[x + 1, y + 1] == ChessPiece.Empty && (x + 1) >= 0 && (y + 1) < ChessBoard.NumberOfRows)
+				allMoves.Add(new ChessMove(new ChessLocation(x+1, y+1), new ChessLocation(x+1, y+1)));
+
+            // lookup right
+            if (currentBoard[x, y + 1] == ChessPiece.Empty && (y + 1) < ChessBoard.NumberOfRows)
+                allMoves.Add(new ChessMove(new ChessLocation(x, y + 1), new ChessLocation(x, y + 1)));
+
+            // lookup left
+            if (currentBoard[x, y - 1] == ChessPiece.Empty && (y - 1) >= 0)
+                allMoves.Add(new ChessMove(new ChessLocation(x, y - 1), new ChessLocation(x, y - 1)));	
+        }
+
+        /// <summary>
         /// This function discovers all possible diagonal moves from the specified location and adds the moves to the list
         /// <summary>
         /// <param name="allMoves">A possibly non-empty list that will have all possible moves appended to it
