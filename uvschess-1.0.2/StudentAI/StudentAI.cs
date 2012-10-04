@@ -42,7 +42,55 @@ namespace StudentAI
         /// <returns>Returns true if the move was valid</returns>
         public bool IsValidMove(ChessBoard boardBeforeMove, ChessMove moveToCheck, ChessColor colorOfPlayerMoving)
         {
-            throw (new NotImplementedException());
+            List<ChessMove> allMoves = new List<ChessMove>();
+            ChessPiece piece;
+            bool bIsValid = false; // if we can't verify the move it will be marked as cheating
+
+            // get the piece that moved
+            piece = boardBeforeMove[moveToCheck.From.X, moveToCheck.From.Y];
+
+            // get all possible moves for the piece in question
+            switch (piece)
+            {
+                case ChessPiece.BlackBishop:
+                case ChessPiece.WhiteBishop:
+                    AddAllPossibleMovesBishop(ref allMoves, ref boardBeforeMove, colorOfPlayerMoving, moveToCheck.From.X, moveToCheck.From.Y);
+                    break;
+                case ChessPiece.BlackKing:
+                case ChessPiece.WhiteKing:
+                    AddAllPossibleMovesKing(ref allMoves, ref boardBeforeMove, colorOfPlayerMoving, moveToCheck.From.X, moveToCheck.From.Y);
+                    break;
+                case ChessPiece.BlackKnight:
+                case ChessPiece.WhiteKnight:
+                    AddAllPossibleMovesKnight(ref allMoves, ref boardBeforeMove, colorOfPlayerMoving, moveToCheck.From.X, moveToCheck.From.Y);
+                    break;
+                case ChessPiece.BlackPawn:
+                case ChessPiece.WhitePawn:
+                    AddAllPossibleMovesPawn(ref allMoves, ref boardBeforeMove, colorOfPlayerMoving, moveToCheck.From.X, moveToCheck.From.Y);
+                    break;
+                case ChessPiece.BlackQueen:
+                case ChessPiece.WhiteQueen:
+                    AddAllPossibleMovesQueen(ref allMoves, ref boardBeforeMove, colorOfPlayerMoving, moveToCheck.From.X, moveToCheck.From.Y);
+                    break;
+                case ChessPiece.BlackRook:
+                case ChessPiece.WhiteRook:
+                    AddAllPossibleMovesRook(ref allMoves, ref boardBeforeMove, colorOfPlayerMoving, moveToCheck.From.X, moveToCheck.From.Y);
+                    break;
+                default:
+                    break;
+            }
+
+            // see if the move was possible
+            foreach ( ChessMove move in allMoves )
+            {
+                if (move.To.X == moveToCheck.To.X && move.To.Y == moveToCheck.To.Y)
+                {
+                    bIsValid = true; // yep, it's a valid move
+                    break;
+                }
+            }
+
+            return bIsValid;
         }
 
 		/**
@@ -63,15 +111,70 @@ namespace StudentAI
 		}
 
 		/**
-		 * This function discovers all possible moves for a Pawn from the specified location and adds the moves to the list
+		 * This function discovers all possible moves for the piece at the specified location and adds the moves to the list
 		 * @author  Bryant
-		 * <param name="allMoves">All possible moves this ply
+		 * <param name="allMoves">A possibly non-empty list that will have all possible moves appended to it
 		 * <param name="currentBoard">The current board state
 		 * <param name="myColor">The color of our chess pieces
 		 * <param name="x">The bishops x location on the board
 		 * <param name="y">The bishops y location on the board
 		 */
-		public void AddAllPossibleMovesPawn ( ref List<ChessMove> allMoves, ref ChessBoard currentBoard, ChessColor myColor, int x, int y )
+        public void GetAllPossibleMoves(ref ChessBoard currentBoard, ChessColor myColor)
+        {
+            List<ChessMove> allMoves = new List<ChessMove>();
+            ChessPiece piece;
+
+            for (int x = 0; x < ChessBoard.NumberOfColumns; x++)
+            {
+                for (int y = 0; y < ChessBoard.NumberOfRows; y++)
+                {
+                    piece = currentBoard[x, y];
+                    if (piece != ChessPiece.Empty)
+                    {
+                        switch (piece)
+                        {
+                            case ChessPiece.BlackBishop:
+                            case ChessPiece.WhiteBishop:
+                                AddAllPossibleMovesBishop(ref allMoves, ref currentBoard, myColor, x, y);
+                                break;
+                            case ChessPiece.BlackKing:
+                            case ChessPiece.WhiteKing:
+                                AddAllPossibleMovesKing(ref allMoves, ref currentBoard, myColor, x, y);
+                                break;
+                            case ChessPiece.BlackKnight:
+                            case ChessPiece.WhiteKnight:
+                                AddAllPossibleMovesKnight(ref allMoves, ref currentBoard, myColor, x, y);
+                                break;
+                            case ChessPiece.BlackPawn:
+                            case ChessPiece.WhitePawn:
+                                AddAllPossibleMovesPawn(ref allMoves, ref currentBoard, myColor, x, y);
+                                break;
+                            case ChessPiece.BlackQueen:
+                            case ChessPiece.WhiteQueen:
+                                AddAllPossibleMovesQueen(ref allMoves, ref currentBoard, myColor, x, y);
+                                break;
+                            case ChessPiece.BlackRook:
+                            case ChessPiece.WhiteRook:
+                                AddAllPossibleMovesRook(ref allMoves, ref currentBoard, myColor, x, y);
+                                break;
+                            default:
+                                break;
+                        }
+                    }
+                }
+            }
+        }
+
+        /**
+         * This function discovers all possible moves for a Pawn from the specified location and adds the moves to the list
+         * @author  Bryant
+		 * <param name="allMoves">A possibly non-empty list that will have all possible moves appended to it
+         * <param name="currentBoard">The current board state
+         * <param name="myColor">The color of our chess pieces
+         * <param name="x">The bishops x location on the board
+         * <param name="y">The bishops y location on the board
+         */
+        public void AddAllPossibleMovesPawn(ref List<ChessMove> allMoves, ref ChessBoard currentBoard, ChessColor myColor, int x, int y)
 		{
             int yDir = (myColor == ChessColor.Black) ? 1 : -1; // indicate whether moving forward uses addition or subtraction
 
@@ -93,61 +196,61 @@ namespace StudentAI
             }
 		}
 
-		/**
-		 * This function discovers all possible moves for a Rook from the specified location and adds the moves to the list
-		 * @author  Bryant
-		 * <param name="allMoves">All possible moves this ply
-		 * <param name="currentBoard">The current board state
-		 * <param name="myColor">The color of our chess pieces
-		 * <param name="x">The bishops x location on the board
-		 * <param name="y">The bishops y location on the board
-		 */
-		public void AddAllPossibleMovesRook ( ref List<ChessMove> allMoves, ref ChessBoard currentBoard, ChessColor myColor, int x, int y )
+        /**
+         * This function discovers all possible moves for a Rook from the specified location and adds the moves to the list
+         * @author  Bryant
+         * <param name="allMoves">A possibly non-empty list that will have all possible moves appended to it
+         * <param name="currentBoard">The current board state
+         * <param name="myColor">The color of our chess pieces
+         * <param name="x">The bishops x location on the board
+         * <param name="y">The bishops y location on the board
+         */
+        public void AddAllPossibleMovesRook ( ref List<ChessMove> allMoves, ref ChessBoard currentBoard, ChessColor myColor, int x, int y )
 		{
 			AddAllPossibleMovesHorizontal ( ref allMoves, ref currentBoard, myColor, x, y );
 			AddAllPossibleMovesVertical ( ref allMoves, ref currentBoard, myColor, x, y );
 		}
 
-		/**
-		 * This function discovers all possible moves for a Bishop from the specified location and adds the moves to the list
-		 * @author  Bryant
-		 * <param name="allMoves">All possible moves this ply
-		 * <param name="currentBoard">The current board state
-		 * <param name="myColor">The color of our chess pieces
-		 * <param name="x">The bishops x location on the board
-		 * <param name="y">The bishops y location on the board
-		 */
-		public void AddAllPossibleMovesBishop ( ref List<ChessMove> allMoves, ref ChessBoard currentBoard, ChessColor myColor, int x, int y )
+        /**
+         * This function discovers all possible moves for a Bishop from the specified location and adds the moves to the list
+         * @author  Bryant
+         * <param name="allMoves">A possibly non-empty list that will have all possible moves appended to it
+         * <param name="currentBoard">The current board state
+         * <param name="myColor">The color of our chess pieces
+         * <param name="x">The bishops x location on the board
+         * <param name="y">The bishops y location on the board
+         */
+        public void AddAllPossibleMovesBishop ( ref List<ChessMove> allMoves, ref ChessBoard currentBoard, ChessColor myColor, int x, int y )
 		{
 			AddAllPossibleMovesDiagonal ( ref allMoves, ref currentBoard, myColor, x, y );
 		}
 
-		/**
-		 * This function discovers all possible moves for a Queen from the specified location and adds the moves to the list
-		 * @author  Bryant
-		 * <param name="allMoves">All possible moves this ply
-		 * <param name="currentBoard">The current board state
-		 * <param name="myColor">The color of our chess pieces
-		 * <param name="x">The bishops x location on the board
-		 * <param name="y">The bishops y location on the board
-		 */
-		public void AddAllPossibleMovesQueen ( ref List<ChessMove> allMoves, ref ChessBoard currentBoard, ChessColor myColor, int x, int y )
+        /**
+         * This function discovers all possible moves for a Queen from the specified location and adds the moves to the list
+         * @author  Bryant
+         * <param name="allMoves">A possibly non-empty list that will have all possible moves appended to it
+         * <param name="currentBoard">The current board state
+         * <param name="myColor">The color of our chess pieces
+         * <param name="x">The bishops x location on the board
+         * <param name="y">The bishops y location on the board
+         */
+        public void AddAllPossibleMovesQueen ( ref List<ChessMove> allMoves, ref ChessBoard currentBoard, ChessColor myColor, int x, int y )
 		{
 			AddAllPossibleMovesDiagonal ( ref allMoves, ref currentBoard, myColor, x, y );
 			AddAllPossibleMovesVertical ( ref allMoves, ref currentBoard, myColor, x, y );
 			AddAllPossibleMovesHorizontal ( ref allMoves, ref currentBoard, myColor, x, y );
 		}
 
-		/**
-		 * This function discovers all possible diagonal moves from the specified location and adds the moves to the list
-		 * @author  Bryant
-		 * <param name="allMoves">All possible moves this ply
-		 * <param name="currentBoard">The current board state
-		 * <param name="myColor">The color of our chess pieces
-		 * <param name="x">The bishops x location on the board
-		 * <param name="y">The bishops y location on the board
-		 */
-		public void AddAllPossibleMovesDiagonal ( ref List<ChessMove> allMoves, ref ChessBoard currentBoard, ChessColor myColor, int x, int y )
+        /**
+         * This function discovers all possible diagonal moves from the specified location and adds the moves to the list
+         * @author  Bryant
+         * <param name="allMoves">A possibly non-empty list that will have all possible moves appended to it
+         * <param name="currentBoard">The current board state
+         * <param name="myColor">The color of our chess pieces
+         * <param name="x">The bishops x location on the board
+         * <param name="y">The bishops y location on the board
+         */
+        public void AddAllPossibleMovesDiagonal ( ref List<ChessMove> allMoves, ref ChessBoard currentBoard, ChessColor myColor, int x, int y )
 		{
 			int newX, newY;
 			bool bStop = false;
@@ -236,16 +339,16 @@ namespace StudentAI
 			}
 		}
 
-		/**
-		 * This function discovers all possible vertical moves from the specified location and adds the moves to the list
-		 * @author  Bryant
-		 * <param name="allMoves">All possible moves this ply
-		 * <param name="currentBoard">The current board state
-		 * <param name="myColor">The color of our chess pieces
-		 * <param name="x">The bishops x location on the board
-		 * <param name="y">The bishops y location on the board
-		 */
-		public void AddAllPossibleMovesVertical ( ref List<ChessMove> allMoves, ref ChessBoard currentBoard, ChessColor myColor, int x, int y )
+        /**
+         * This function discovers all possible vertical moves from the specified location and adds the moves to the list
+         * @author  Bryant
+         * <param name="allMoves">A possibly non-empty list that will have all possible moves appended to it
+         * <param name="currentBoard">The current board state
+         * <param name="myColor">The color of our chess pieces
+         * <param name="x">The bishops x location on the board
+         * <param name="y">The bishops y location on the board
+         */
+        public void AddAllPossibleMovesVertical ( ref List<ChessMove> allMoves, ref ChessBoard currentBoard, ChessColor myColor, int x, int y )
 		{
 			// looking up
 			for ( int newY = y - 1; newY >= 0; newY-- )
@@ -282,16 +385,16 @@ namespace StudentAI
             }
 		}
 
-		/**
-		 * This function discovers all possible horizontal moves from the specified location and adds the moves to the list
-		 * @author  Bryant
-		 * <param name="allMoves">All possible moves this ply
-		 * <param name="currentBoard">The current board state
-		 * <param name="myColor">The color of our chess pieces
-		 * <param name="x">The bishops x location on the board
-		 * <param name="y">The bishops y location on the board
-		 */
-		public void AddAllPossibleMovesHorizontal ( ref List<ChessMove> allMoves, ref ChessBoard currentBoard, ChessColor myColor, int x, int y )
+        /**
+         * This function discovers all possible horizontal moves from the specified location and adds the moves to the list
+         * @author  Bryant
+         * <param name="allMoves">A possibly non-empty list that will have all possible moves appended to it
+         * <param name="currentBoard">The current board state
+         * <param name="myColor">The color of our chess pieces
+         * <param name="x">The bishops x location on the board
+         * <param name="y">The bishops y location on the board
+         */
+        public void AddAllPossibleMovesHorizontal ( ref List<ChessMove> allMoves, ref ChessBoard currentBoard, ChessColor myColor, int x, int y )
 		{
 			// looking right
 			for ( int newX = x + 1; newX < ChessBoard.NumberOfColumns; newX++ )
