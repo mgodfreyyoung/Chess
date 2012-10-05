@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Text;
 using UvsChess;
+using System.IO;
 
 namespace StudentAI
 {
@@ -23,6 +24,85 @@ namespace StudentAI
 #endif
         }
 
+        private void logBoard(ChessBoard board, ChessColor myColor, ChessMove move)
+        {
+#if FALSE
+            FileStream fs = null;
+            StreamWriter writer = null;
+            ChessPiece piece;
+            int i, j;
+
+            if ( myColor == ChessColor.Black )
+                fs = new FileStream("C:/Users/bryant/Desktop/BlackBoard.txt", FileMode.Append, FileAccess.Write);
+            else
+                fs = new FileStream("C:/Users/bryant/Desktop/WhiteBoard.txt", FileMode.Append, FileAccess.Write);
+            writer = new StreamWriter(fs);
+            writer.WriteLine("==============================================");
+            writer.WriteLine("");
+            for (i = 0; i < ChessBoard.NumberOfRows; i++)
+            {
+                writer.WriteLine("");
+                for (j = 0; j < ChessBoard.NumberOfColumns; j++)
+                {
+                    piece = board[j, i];
+                    switch (piece)
+                    {
+                        case ChessPiece.BlackBishop:
+                            writer.Write("BlackBishop\t");
+                            break;
+                        case ChessPiece.WhiteBishop:
+                            writer.Write("WhiteBishop\t");
+                            break;
+                        case ChessPiece.BlackKing:
+                            writer.Write("BlackKing\t");
+                            break;
+                        case ChessPiece.WhiteKing:
+                            writer.Write("WhiteKing\t");
+                            break;
+                        case ChessPiece.BlackKnight:
+                            writer.Write("BlackKnight\t");
+                            break;
+                        case ChessPiece.WhiteKnight:
+                            writer.Write("WhiteKnight\t");
+                            break;
+                        case ChessPiece.BlackPawn:
+                            writer.Write("BlackPawn\t");
+                            break;
+                        case ChessPiece.WhitePawn:
+                            writer.Write("WhitePawn\t");
+                            break;
+                        case ChessPiece.BlackQueen:
+                            writer.Write("BlackQueen\t");
+                            break;
+                        case ChessPiece.WhiteQueen:
+                            writer.Write("WhiteQueen\t");
+                            break;
+                        case ChessPiece.BlackRook:
+                            writer.Write("BlackRook\t");
+                            break;
+                        case ChessPiece.WhiteRook:
+                            writer.Write("WhiteRook\t");
+                            break;
+                        case ChessPiece.Empty:
+                            writer.Write("Empty\t");
+                            break;
+                        default:
+                            writer.Write("<ERROR>\t");
+                            break;
+                    }
+                }
+            }
+
+            writer.WriteLine("");
+            if (move == null)
+                writer.WriteLine("MOVED: NULL!!!!!");
+            else
+                writer.WriteLine("MOVED: from {0},{1} to {2},{3}", move.From.X, move.From.Y, move.To.X, move.To.Y);
+            writer.Flush();
+            writer.Close();
+#endif
+        }
+
         /// <summary>
         /// Evaluates the chess board and decided which move to make. This is the main method of the AI.
         /// The framework will call this method when it's your turn.
@@ -32,7 +112,9 @@ namespace StudentAI
         /// <returns> Returns the best chess move the player has for the given chess board</returns>
         public ChessMove GetNextMove(ChessBoard board, ChessColor myColor)
         {
-            return MiniMaxDecision(board, myColor, MAX_NUM_PLIES);
+            ChessMove bestMove = MiniMaxDecision(board, myColor, MAX_NUM_PLIES);
+
+            return bestMove;
         }
 
         /// <summary>
@@ -664,88 +746,76 @@ namespace StudentAI
         private void AddAllPossibleMovesDiagonal(ref List<ChessMove> allMoves, ref ChessBoard currentBoard, ChessColor myColor, int x, int y)
 		{
 			int newX, newY;
-			bool bStop = false;
 
 			// lookup up & left
-			for ( newX = x - 1; newX >= 0 && !bStop; newX-- )
+            newY = y - 1;
+            for (newX = x - 1; newX >= 0 && newY >= 0; newX--, newY --)
 			{
-				for ( newY = y - 1; newY >= 0 && !bStop; newY-- )
+				if ( currentBoard[newX, newY] == ChessPiece.Empty )
 				{
-					if ( currentBoard[newX, newY] == ChessPiece.Empty )
-					{
-                        allMoves.Add ( new ChessMove ( new ChessLocation ( x, y ), new ChessLocation ( newX, newY ) ) );
-                    }
-                    else
+                    allMoves.Add ( new ChessMove ( new ChessLocation ( x, y ), new ChessLocation ( newX, newY ) ) );
+                }
+                else
+                {
+                    if (IsOpponentPiece(currentBoard[newX, newY], myColor))
                     {
-                        if (IsOpponentPiece(currentBoard[newX, newY], myColor))
-                        {
-                            allMoves.Add(new ChessMove(new ChessLocation(x, y), new ChessLocation(newX, newY)));
-                        }
-						bStop = true;
-					}
+                        allMoves.Add(new ChessMove(new ChessLocation(x, y), new ChessLocation(newX, newY)));
+                    }
+                    break;
 				}
 			}
 
 			// look up and right
-			bStop = false;
-			for ( newX = x + 1; newX < ChessBoard.NumberOfColumns && !bStop; newX++ )
+            newY = y - 1;
+			for ( newX = x + 1; newX < ChessBoard.NumberOfColumns && newY >= 0; newX++, newY-- )
 			{
-				for ( newY = y - 1; newY >= 0 && !bStop; newY-- )
+                if (currentBoard[newX, newY] == ChessPiece.Empty)
+                {
+                    allMoves.Add(new ChessMove(new ChessLocation(x, y), new ChessLocation(newX, newY)));
+                }
+                else
 				{
-                    if (currentBoard[newX, newY] == ChessPiece.Empty)
+                    if (IsOpponentPiece(currentBoard[newX, newY], myColor))
                     {
                         allMoves.Add(new ChessMove(new ChessLocation(x, y), new ChessLocation(newX, newY)));
                     }
-                    else
-					{
-                        if (IsOpponentPiece(currentBoard[newX, newY], myColor))
-                        {
-                            allMoves.Add(new ChessMove(new ChessLocation(x, y), new ChessLocation(newX, newY)));
-                        }
-						bStop = true;
-					}
+					break;
 				}
 			}
 
 			// look down and right
-			bStop = false;
-			for ( newX = x + 1; newX < ChessBoard.NumberOfColumns && !bStop; newX++ )
+            newY = y + 1;
+			for ( newX = x + 1; newX < ChessBoard.NumberOfColumns && newY < ChessBoard.NumberOfRows; newX++, newY++ )
 			{
-				for ( newY = y + 1; newY < ChessBoard.NumberOfRows && !bStop; newY++ )
+				if (currentBoard[newX, newY] == ChessPiece.Empty)
+                {
+                    allMoves.Add(new ChessMove(new ChessLocation(x, y), new ChessLocation(newX, newY)));
+                }
+                else
 				{
-					if (currentBoard[newX, newY] == ChessPiece.Empty)
+                    if (IsOpponentPiece(currentBoard[newX, newY], myColor))
                     {
                         allMoves.Add(new ChessMove(new ChessLocation(x, y), new ChessLocation(newX, newY)));
                     }
-                    else
-					{
-                        if (IsOpponentPiece(currentBoard[newX, newY], myColor))
-                        {
-                            allMoves.Add(new ChessMove(new ChessLocation(x, y), new ChessLocation(newX, newY)));
-                        }
-						bStop = true;
-					}
+					break;
 				}
 			}
 
 			// look down and left
-			bStop = false;
-			for ( newX = x - 1; newX >= 0 && !bStop; newX-- )
+            newY = y + 1;
+            for (newX = x - 1; newX >= 0 && newY < ChessBoard.NumberOfRows; newX--, newY++)
 			{
-				for ( newY = y + 1; newY < ChessBoard.NumberOfRows && !bStop; newY++ )
+                if (currentBoard[newX, newY] == ChessPiece.Empty)
+                {
+                    allMoves.Add(new ChessMove(new ChessLocation(x, y), new ChessLocation(newX, newY)));
+                }
+                else
 				{
-                    if (currentBoard[newX, newY] == ChessPiece.Empty)
+                    if (IsOpponentPiece(currentBoard[newX, newY], myColor))
                     {
                         allMoves.Add(new ChessMove(new ChessLocation(x, y), new ChessLocation(newX, newY)));
                     }
-                    else
-					{
-                        if (IsOpponentPiece(currentBoard[newX, newY], myColor))
-                        {
-                            allMoves.Add(new ChessMove(new ChessLocation(x, y), new ChessLocation(newX, newY)));
-                        }
-						bStop = true;
-					}
+                    break;
 				}
 			}
 		}
@@ -779,7 +849,7 @@ namespace StudentAI
 			}
 
 			// looking down
-			for ( int newY = y + 1; newY < ChessBoard.NumberOfRows; newY-- )
+			for ( int newY = y + 1; newY < ChessBoard.NumberOfRows; newY++ )
 			{
                 if (currentBoard[x, newY] == ChessPiece.Empty)
                 {
