@@ -58,6 +58,10 @@ namespace StudentAI
             // get the piece that moved
             piece = boardBeforeMove[moveToCheck.From.X, moveToCheck.From.Y];
 
+            // make sure they didn't try to move one of our pieces
+            if (IsOpponentPiece(piece, colorOfPlayerMoving))
+                return false; // they tried to move our pieces! cheater!
+
             // get all possible moves for the piece in question
             switch (piece)
             {
