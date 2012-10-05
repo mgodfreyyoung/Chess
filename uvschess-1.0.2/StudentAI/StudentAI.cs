@@ -9,6 +9,8 @@ namespace StudentAI
     {
         #region IChessAI Members that are implemented by the Student
 
+        public const int MAX_NUM_PLIES = 3;
+
         /// <summary>
         /// The name of your AI
         /// </summary>
@@ -30,7 +32,7 @@ namespace StudentAI
         /// <returns> Returns the best chess move the player has for the given chess board</returns>
         public ChessMove GetNextMove(ChessBoard board, ChessColor myColor)
         {
-            throw (new NotImplementedException());
+            return MiniMaxDecision(board, myColor, MAX_NUM_PLIES);
         }
 
         /// <summary>
@@ -45,6 +47,13 @@ namespace StudentAI
             List<ChessMove> allMoves = new List<ChessMove>();
             ChessPiece piece;
             bool bIsValid = false; // if we can't verify the move it will be marked as cheating
+
+            // make sure the move is even on the board
+            if (moveToCheck.From.X < 0 || moveToCheck.From.Y < 0 || moveToCheck.From.X >= ChessBoard.NumberOfColumns || moveToCheck.From.Y >= ChessBoard.NumberOfRows ||
+                moveToCheck.To.X < 0 || moveToCheck.To.Y < 0 || moveToCheck.To.X >= ChessBoard.NumberOfColumns || moveToCheck.To.Y >= ChessBoard.NumberOfRows)
+            {
+                return false; // index out of bounds, cheater how dare you try to crash us!
+            }
 
             // get the piece that moved
             piece = boardBeforeMove[moveToCheck.From.X, moveToCheck.From.Y];
@@ -94,12 +103,134 @@ namespace StudentAI
         }
 
         /// <summary>
+        /// Evaluate the board and determine a utility value for it. This function is
+        /// called from MaxValue() and MinValue() to determine the value of the leaf
+        /// nodes.
+        /// </summary>
+        /// <param name="board"></param>The board to evaluate
+        /// <param name="myColor"></param>The color of my pieces
+        /// <returns></returns>The utility value of this board
+        private int Utility(ChessBoard board, ChessColor myColor)
+        {
+            // TODO <Mike> Write this heuristic function
+            return 0;
+        }
+
+        /// <summary>
+        /// This function looks ahead nPlies moves to determine what the best move is now
+        /// </summary>
+        /// <param name="boardBeforeMove"></param>The board before we move
+        /// <param name="myColor"></param>The color of my pieces
+        /// <param name="nPlies"></param>The number of plies to look ahead
+        /// <returns>The best move, null if none</returns>
+        private ChessMove MiniMaxDecision(ChessBoard boardBeforeMove, ChessColor myColor, int nPlies)
+        {
+            List<ChessMove> allPossibleMoves = GetAllPossibleMoves(ref boardBeforeMove, myColor);
+            ChessBoard tempBoard = null;
+            ChessColor opponentColor = (myColor == ChessColor.Black) ? ChessColor.White : ChessColor.Black;
+            ChessMove bestMove = null;
+            int bestValue = System.Int32.MinValue;
+            int value;
+
+            // peek ahead through all possible moves and find the best one
+            foreach (ChessMove move in allPossibleMoves)
+            {
+                tempBoard = boardBeforeMove.Clone();
+                tempBoard.MakeMove(move);
+                value = MinValue(tempBoard, opponentColor, nPlies - 1);
+                if (value > bestValue)
+                {
+                    bestValue = value;
+                    bestMove = move;
+                }
+            }
+
+            return bestMove;
+        }
+
+        /// <summary>
+        /// This mutually recursive function tries to find the best move for the opponent
+        /// </summary>
+        /// <param name="boardBeforeMove"></param>The board before we move
+        /// <param name="myColor"></param>The color of my (the opponent) pieces
+        /// <param name="nPlies"></param>The number of plies remaining to look ahead
+        /// <returns>The utility value of this branch</returns>
+        private int MinValue(ChessBoard boardBeforeMove, ChessColor myColor, int nPlies)
+        {
+            List<ChessMove> allPossibleMoves = GetAllPossibleMoves(ref boardBeforeMove, myColor);
+            ChessBoard tempBoard = null;
+            ChessColor opponentColor = (myColor == ChessColor.Black) ? ChessColor.White : ChessColor.Black;
+            int bestValue = System.Int32.MaxValue;
+            int value;
+
+            // assign utility value if we're at the leaf node, this
+            // value will bubble up with each branch choosing what
+            // it considers to be the "best" value as it's value.
+            if (nPlies == 0)
+            {
+                return Utility(boardBeforeMove, opponentColor);
+            }
+
+            // peek ahead through all possible moves and find the best one
+            foreach (ChessMove move in allPossibleMoves)
+            {
+                tempBoard = boardBeforeMove.Clone();
+                tempBoard.MakeMove(move);
+                value = MaxValue(tempBoard, opponentColor, nPlies - 1);
+                if (value < bestValue)
+                {
+                    bestValue = value;
+                }
+            }
+
+            return bestValue;
+        }
+
+        /// <summary>
+        /// This mutually recursive function tries to find the best move for me
+        /// </summary>
+        /// <param name="boardBeforeMove"></param>The board before we move
+        /// <param name="myColor"></param>The color of my pieces
+        /// <param name="nPlies"></param>The number of plies remaining to look ahead
+        /// <returns>The utility value of this branch</returns>
+        public int MaxValue(ChessBoard boardBeforeMove, ChessColor myColor, int nPlies)
+        {
+            List<ChessMove> allPossibleMoves = GetAllPossibleMoves(ref boardBeforeMove, myColor);
+            ChessBoard tempBoard = null;
+            ChessColor opponentColor = (myColor == ChessColor.Black) ? ChessColor.White : ChessColor.Black;
+            int bestValue = System.Int32.MaxValue;
+            int value;
+
+            // assign utility value if we're at the leaf node, this
+            // value will bubble up with each branch choosing what
+            // it considers to be the "best" value as it's value.
+            if (nPlies == 0)
+            {
+                return Utility(boardBeforeMove, myColor);
+            }
+
+            // peek ahead through all possible moves and find the best one
+            foreach (ChessMove move in allPossibleMoves)
+            {
+                tempBoard = boardBeforeMove.Clone();
+                tempBoard.MakeMove(move);
+                value = MaxValue(tempBoard, opponentColor, nPlies - 1);
+                if (value > bestValue)
+                {
+                    bestValue = value;
+                }
+            }
+
+            return bestValue;
+        }
+
+        /// <summary>
 		/// This function determines whether a specified piece belongs to an opponent
         /// <summary>
         /// <param name="piece">The piece in question
 		/// <param name="myColor">The color of my pieces
-		///
-		public bool IsOpponentPiece ( ChessPiece piece, ChessColor myColor )
+        /// <returns>True if the piece belongs to the opponent, otherwise false</returns>
+		private bool IsOpponentPiece ( ChessPiece piece, ChessColor myColor )
 		{
 			if ( myColor == ChessColor.White )
 			{
@@ -114,13 +245,10 @@ namespace StudentAI
         /// <summary>
 		/// This function discovers all possible moves for the piece at the specified location and adds the moves to the list
         /// <summary>
-		/// <param name="allMoves">A possibly non-empty list that will have all possible moves appended to it
 		/// <param name="currentBoard">The current board state
 		/// <param name="myColor">The color of the player whos moving
-		/// <param name="x">The bishops x location on the board
-		/// <param name="y">The bishops y location on the board
-		///
-        public void GetAllPossibleMoves(ref ChessBoard currentBoard, ChessColor myColor)
+        /// <returns>A list of all possible moves</returns>
+        private List<ChessMove> GetAllPossibleMoves(ref ChessBoard currentBoard, ChessColor myColor)
         {
             List<ChessMove> allMoves = new List<ChessMove>();
             ChessPiece piece;
@@ -130,7 +258,7 @@ namespace StudentAI
                 for (int y = 0; y < ChessBoard.NumberOfRows; y++)
                 {
                     piece = currentBoard[x, y];
-                    if (piece != ChessPiece.Empty)
+                    if (piece != ChessPiece.Empty && !IsOpponentPiece (piece, myColor))
                     {
                         switch (piece)
                         {
@@ -164,6 +292,8 @@ namespace StudentAI
                     }
                 }
             }
+
+            return allMoves;
         }
 
         /// <summary>
@@ -175,25 +305,62 @@ namespace StudentAI
         /// <param name="x">The bishops x location on the board
         /// <param name="y">The bishops y location on the board
         ///
-        public void AddAllPossibleMovesPawn(ref List<ChessMove> allMoves, ref ChessBoard currentBoard, ChessColor myColor, int x, int y)
+        private void AddAllPossibleMovesPawn(ref List<ChessMove> allMoves, ref ChessBoard currentBoard, ChessColor myColor, int x, int y)
 		{
-            int yDir = (myColor == ChessColor.Black) ? 1 : -1; // indicate whether moving forward uses addition or subtraction
+            int newX;
+            int newY;
 
-			if ( currentBoard[x, y + yDir] == ChessPiece.Empty ) // forward 1
-			{
-				allMoves.Add ( new ChessMove ( new ChessLocation ( x, y ), new ChessLocation ( x, y + yDir ) ) );
-			}
-            if (y == (ChessBoard.NumberOfRows - 2) && currentBoard[x, y + yDir] == ChessPiece.Empty && currentBoard[x, y + (yDir * 2)] == ChessPiece.Empty) // forward 2
-			{
-                allMoves.Add(new ChessMove(new ChessLocation(x, y), new ChessLocation(x, y + (yDir * 2))));
-			}
-            if (IsOpponentPiece(currentBoard[x - 1, y + yDir], myColor)) // capture diagonally up & left
+            if (myColor == ChessColor.Black)
             {
-                allMoves.Add(new ChessMove(new ChessLocation(x, y), new ChessLocation(x - 1, y + yDir)));
+                newY = y + 1;
+                if (newY < ChessBoard.NumberOfRows)
+                {
+                    newX = x + 1;
+                    if (newX < ChessBoard.NumberOfColumns && IsOpponentPiece(currentBoard[newX, newY], myColor)) // capture diagonally forward and right
+                    {
+                        allMoves.Add(new ChessMove(new ChessLocation(x, y), new ChessLocation(newX, newY)));
+                    }
+                    newX = x - 1;
+                    if (newX >= 0 && IsOpponentPiece(currentBoard[newX, newY], myColor)) // capture diagonally forward and left
+                    {
+                        allMoves.Add(new ChessMove(new ChessLocation(x, y), new ChessLocation(newX, newY)));
+                    }
+                }
+                if ((newY < ChessBoard.NumberOfRows) && currentBoard[x, newY] == ChessPiece.Empty) // forward 1
+                {
+                    allMoves.Add(new ChessMove(new ChessLocation(x, y), new ChessLocation(x, newY)));
+                    newY = y + 2;
+                    if (newY < ChessBoard.NumberOfRows && currentBoard[x, newY] == ChessPiece.Empty) // forward 2
+                    {
+                        allMoves.Add(new ChessMove(new ChessLocation(x, y), new ChessLocation(x, newY)));
+                    }
+                }
             }
-            if (IsOpponentPiece(currentBoard[x + 1, y + yDir], myColor)) // capture diagonally up & right
+            else
             {
-                allMoves.Add(new ChessMove(new ChessLocation(x, y), new ChessLocation(x + 1, y + yDir)));
+                newY = y - 1;
+                if (newY >= 0)
+                {
+                    newX = x + 1;
+                    if (newX < ChessBoard.NumberOfColumns && IsOpponentPiece(currentBoard[newX, newY], myColor)) // capture diagonally forward and right
+                    {
+                        allMoves.Add(new ChessMove(new ChessLocation(x, y), new ChessLocation(newX, newY)));
+                    }
+                    newX = x - 1;
+                    if (newX >= 0 && IsOpponentPiece(currentBoard[newX, newY], myColor)) // capture diagonally forward and left
+                    {
+                        allMoves.Add(new ChessMove(new ChessLocation(x, y), new ChessLocation(newX, newY)));
+                    }
+                }
+                if ((newY >= 0) && currentBoard[x, newY] == ChessPiece.Empty) // forward 1
+                {
+                    allMoves.Add(new ChessMove(new ChessLocation(x, y), new ChessLocation(x, newY)));
+                    newY = y - 2;
+                    if (newY >= 0 && currentBoard[x, newY] == ChessPiece.Empty) // forward 2
+                    {
+                        allMoves.Add(new ChessMove(new ChessLocation(x, y), new ChessLocation(x, newY)));
+                    }
+                }
             }
 		}
 
@@ -206,7 +373,7 @@ namespace StudentAI
         /// <param name="x">The bishops x location on the board
         /// <param name="y">The bishops y location on the board
         ///
-        public void AddAllPossibleMovesRook ( ref List<ChessMove> allMoves, ref ChessBoard currentBoard, ChessColor myColor, int x, int y )
+        private void AddAllPossibleMovesRook(ref List<ChessMove> allMoves, ref ChessBoard currentBoard, ChessColor myColor, int x, int y)
 		{
 			AddAllPossibleMovesHorizontal ( ref allMoves, ref currentBoard, myColor, x, y );
 			AddAllPossibleMovesVertical ( ref allMoves, ref currentBoard, myColor, x, y );
@@ -221,7 +388,7 @@ namespace StudentAI
         /// <param name="x">The bishops x location on the board
         /// <param name="y">The bishops y location on the board
         ///
-        public void AddAllPossibleMovesBishop ( ref List<ChessMove> allMoves, ref ChessBoard currentBoard, ChessColor myColor, int x, int y )
+        private void AddAllPossibleMovesBishop(ref List<ChessMove> allMoves, ref ChessBoard currentBoard, ChessColor myColor, int x, int y)
 		{
 			AddAllPossibleMovesDiagonal ( ref allMoves, ref currentBoard, myColor, x, y );
 		}
@@ -235,7 +402,7 @@ namespace StudentAI
         /// <param name="x">The bishops x location on the board
         /// <param name="y">The bishops y location on the board
         ///
-        public void AddAllPossibleMovesQueen ( ref List<ChessMove> allMoves, ref ChessBoard currentBoard, ChessColor myColor, int x, int y )
+        private void AddAllPossibleMovesQueen(ref List<ChessMove> allMoves, ref ChessBoard currentBoard, ChessColor myColor, int x, int y)
 		{
 			AddAllPossibleMovesDiagonal ( ref allMoves, ref currentBoard, myColor, x, y );
 			AddAllPossibleMovesVertical ( ref allMoves, ref currentBoard, myColor, x, y );
@@ -251,130 +418,234 @@ namespace StudentAI
         /// <param name="x">The bishops x location on the board
         /// <param name="y">The bishops y location on the board
         ///
-        public void AddAllPossibleMovesKnight(ref List<ChessMove> allMoves, ref ChessBoard currentBoard, ChessColor myColor, int x, int y)
+        private void AddAllPossibleMovesKnight(ref List<ChessMove> allMoves, ref ChessBoard currentBoard, ChessColor myColor, int x, int y)
         {
+            int newX;
+            int newY;
 
-			// lookup up two and left
-			if (currentBoard[x - 2,y - 1] == ChessPiece.Empty && (x-2) >= 0 && (y-1) >= 0)
-                if (IsOpponentPiece(currentBoard[x - 2, y -1], myColor))
+            if (myColor == ChessColor.Black)
+            {
+                // looking forward
+                newY = y + 1; // forward 1
+                if (newY < ChessBoard.NumberOfRows)
                 {
-                    allMoves.Add(new ChessMove(new ChessLocation(x, y), new ChessLocation(x - 2, y - 1)));
+                    // look forward 1 and right 2
+                    newX = x + 2;
+                    if (newX < ChessBoard.NumberOfColumns && (currentBoard[newX, newY] == ChessPiece.Empty || IsOpponentPiece(currentBoard[newX, newY], myColor)))
+                    {
+                        allMoves.Add(new ChessMove(new ChessLocation(x, y), new ChessLocation(newX, newY)));
+                    }
+
+                    // look forward 1 and left 2
+                    newX = x - 2;
+                    if (newX >= 0 && (currentBoard[newX, newY] == ChessPiece.Empty || IsOpponentPiece(currentBoard[newX, newY], myColor)))
+                    {
+                        allMoves.Add(new ChessMove(new ChessLocation(x, y), new ChessLocation(newX, newY)));
+                    }
+                }
+                newY = y + 2; // forward 2
+                if (newY < ChessBoard.NumberOfRows)
+                {
+                    // look forward 2 and right 1
+                    newX = x + 1;
+                    if (newX < ChessBoard.NumberOfColumns && (currentBoard[newX, newY] == ChessPiece.Empty || IsOpponentPiece(currentBoard[newX, newY], myColor)))
+                    {
+                        allMoves.Add(new ChessMove(new ChessLocation(x, y), new ChessLocation(newX, newY)));
+                    }
+
+                    // look forward 2 and left 1
+                    newX = x - 1;
+                    if (newX >= 0 && (currentBoard[newX, newY] == ChessPiece.Empty || IsOpponentPiece(currentBoard[newX, newY], myColor)))
+                    {
+                        allMoves.Add(new ChessMove(new ChessLocation(x, y), new ChessLocation(newX, newY)));
+                    }
                 }
 
-
-			// lookup up one and left two
-			if (currentBoard[x - 1,y - 2] == ChessPiece.Empty && (x-1) >= 0 && (y-2) >= 0)
-                if (IsOpponentPiece(currentBoard[x - 1, y - 2], myColor))
+                // looking backward now
+                newY = y - 1; // backward 1
+                if (newY >= 0)
                 {
-                    allMoves.Add(new ChessMove(new ChessLocation(x, y), new ChessLocation(x - 1, y - 2)));
+                    // look backward 1 and right 2
+                    newX = x + 2;
+                    if (newX < ChessBoard.NumberOfColumns && (currentBoard[newX, newY] == ChessPiece.Empty || IsOpponentPiece(currentBoard[newX, newY], myColor)))
+                    {
+                        allMoves.Add(new ChessMove(new ChessLocation(x, y), new ChessLocation(newX, newY)));
+                    }
+
+                    // look backward 1 and left 2
+                    newX = x - 2;
+                    if (newX >= 0 && (currentBoard[newX, newY] == ChessPiece.Empty || IsOpponentPiece(currentBoard[newX, newY], myColor)))
+                    {
+                        allMoves.Add(new ChessMove(new ChessLocation(x, y), new ChessLocation(newX, newY)));
+                    }
+                }
+                newY = y - 2; // backward 2
+                if ( newY >= 0 ) 
+                {
+                    // look backward 2 and right 1
+                    newX = x + 1;
+                    if (newX < ChessBoard.NumberOfColumns && (currentBoard[newX, newY] == ChessPiece.Empty || IsOpponentPiece(currentBoard[newX, newY], myColor)))
+                    {
+                        allMoves.Add(new ChessMove(new ChessLocation(x, y), new ChessLocation(newX, newY)));
+                    }
+
+                    // look backward 2 and left 1
+                    newX = x - 1;
+                    if (newX >= 0 && (currentBoard[newX, newY] == ChessPiece.Empty || IsOpponentPiece(currentBoard[newX, newY], myColor)))
+                    {
+                        allMoves.Add(new ChessMove(new ChessLocation(x, y), new ChessLocation(newX, newY)));
+                    }
+                }
+            }
+            else // myColor == ChessColor.White
+            {
+                // looking forward
+                newY = y - 1; // forward 1
+                if (newY >= 0)
+                {
+                    // look forward 1 and right 2
+                    newX = x + 2;
+                    if (newX < ChessBoard.NumberOfColumns && (currentBoard[newX, newY] == ChessPiece.Empty || IsOpponentPiece(currentBoard[newX, newY], myColor)))
+                    {
+                        allMoves.Add(new ChessMove(new ChessLocation(x, y), new ChessLocation(newX, newY)));
+                    }
+
+                    // look forward 1 and left 2
+                    newX = x - 2;
+                    if (newX >= 0 && (currentBoard[newX, newY] == ChessPiece.Empty || IsOpponentPiece(currentBoard[newX, newY], myColor)))
+                    {
+                        allMoves.Add(new ChessMove(new ChessLocation(x, y), new ChessLocation(newX, newY)));
+                    }
+                }
+                newY = y - 2; // forward 2
+                if (newY >= 0)
+                {
+                    // look forward 2 and right 1
+                    newX = x + 1;
+                    if (newX < ChessBoard.NumberOfColumns && (currentBoard[newX, newY] == ChessPiece.Empty || IsOpponentPiece(currentBoard[newX, newY], myColor)))
+                    {
+                        allMoves.Add(new ChessMove(new ChessLocation(x, y), new ChessLocation(newX, newY)));
+                    }
+
+                    // look forward 2 and left 1
+                    newX = x - 1;
+                    if (newX >= 0 && (currentBoard[newX, newY] == ChessPiece.Empty || IsOpponentPiece(currentBoard[newX, newY], myColor)))
+                    {
+                        allMoves.Add(new ChessMove(new ChessLocation(x, y), new ChessLocation(newX, newY)));
+                    }
                 }
 
-			// lookup up two and right one
-			if (currentBoard[x - 2,y + 1] == ChessPiece.Empty && (x-2) <= 0 && (y+1) < ChessBoard.NumberOfRows)
-                if (IsOpponentPiece(currentBoard[x - 2, y + 1], myColor))
+                // looking backward now
+                newY = y + 1; // backward 1
+                if (newY < ChessBoard.NumberOfRows)
                 {
-                    allMoves.Add(new ChessMove(new ChessLocation(x, y), new ChessLocation(x - 2, y + 1)));
-                }
+                    // look backward 1 and right 2
+                    newX = x + 2;
+                    if (newX < ChessBoard.NumberOfColumns && (currentBoard[newX, newY] == ChessPiece.Empty || IsOpponentPiece(currentBoard[newX, newY], myColor)))
+                    {
+                        allMoves.Add(new ChessMove(new ChessLocation(x, y), new ChessLocation(newX, newY)));
+                    }
 
-			
-            // lookup down one and right two
-			if (currentBoard[x - 1,y + 2] == ChessPiece.Empty && (x-1) >= 0 && (y+2) < ChessBoard.NumberOfRows)
-                if (IsOpponentPiece(currentBoard[x - 1, y + 2], myColor))
+                    // look backward 1 and left 2
+                    newX = x - 2;
+                    if (newX >= 0 && (currentBoard[newX, newY] == ChessPiece.Empty || IsOpponentPiece(currentBoard[newX, newY], myColor)))
+                    {
+                        allMoves.Add(new ChessMove(new ChessLocation(x, y), new ChessLocation(newX, newY)));
+                    }
+                }
+                newY = y + 2; // backward 2
+                if (newY < ChessBoard.NumberOfRows)
                 {
-                    allMoves.Add(new ChessMove(new ChessLocation(x, y), new ChessLocation(x - 1, y + 2)));
-                }
-		
-			// lookup down two and left
-			if (currentBoard[x + 2,y - 1] == ChessPiece.Empty && (x + 2) < ChessBoard.NumberOfColumns && (y-1) >= 0)
-                if (IsOpponentPiece(currentBoard[x + 2, y - 1], myColor))
-                {
-                    allMoves.Add(new ChessMove(new ChessLocation(x, y), new ChessLocation(x + 2, y - 1)));
-                }
+                    // look backward 2 and right 1
+                    newX = x + 1;
+                    if (newX < ChessBoard.NumberOfColumns && (currentBoard[newX, newY] == ChessPiece.Empty || IsOpponentPiece(currentBoard[newX, newY], myColor)))
+                    {
+                        allMoves.Add(new ChessMove(new ChessLocation(x, y), new ChessLocation(newX, newY)));
+                    }
 
-			// lookup down and left two
-			if (currentBoard[x + 1,y - 2] == ChessPiece.Empty && (x+1) < ChessBoard.NumberOfColumns  && (y-2) >= 0)
-                if (IsOpponentPiece(currentBoard[x + 1, y - 2], myColor))
-                {
-                    allMoves.Add(new ChessMove(new ChessLocation(x, y), new ChessLocation(x + 1, y - 2)));
+                    // look backward 2 and left 1
+                    newX = x - 1;
+                    if (newX >= 0 && (currentBoard[newX, newY] == ChessPiece.Empty || IsOpponentPiece(currentBoard[newX, newY], myColor)))
+                    {
+                        allMoves.Add(new ChessMove(new ChessLocation(x, y), new ChessLocation(newX, newY)));
+                    }
                 }
-
-			// lookup down one and right one
-			if (currentBoard[x + 2,y + 1] == ChessPiece.Empty && x + 2 < ChessBoard.NumberOfColumns && (y+1) < ChessBoard.NumberOfRows)
-                if (IsOpponentPiece(currentBoard[x + 2, y + 1], myColor))
-                {
-                    allMoves.Add(new ChessMove(new ChessLocation(x, y), new ChessLocation(x + 2, y + 1)));
-                }
-
-			// lookup down one and right two
-			if (currentBoard[x + 1,y + 2] == ChessPiece.Empty && x + 1 < ChessBoard.NumberOfColumns && (y+2) < ChessBoard.NumberOfRows)
-                if (IsOpponentPiece(currentBoard[x + 1, y + 2], myColor))
-                {
-                    allMoves.Add(new ChessMove(new ChessLocation(x, y), new ChessLocation(x + 1, y + 2)));
-                }
-
-
+            }
         }
-        public void AddAllPossibleMovesKing(ref List<ChessMove> allMoves, ref ChessBoard currentBoard, ChessColor myColor, int x, int y)
+
+        /// <summary>
+        /// This function discovers all possible moves for a King from the specified location and adds the moves to the list
+        /// <summary>
+        /// <param name="allMoves">A possibly non-empty list that will have all possible moves appended to it
+        /// <param name="currentBoard">The current board state
+        /// <param name="myColor">The color of the player whos moving
+        /// <param name="x">The bishops x location on the board
+        /// <param name="y">The bishops y location on the board
+        ///
+        private void AddAllPossibleMovesKing(ref List<ChessMove> allMoves, ref ChessBoard currentBoard, ChessColor myColor, int x, int y)
         {
+            int newX = x;
+            int newY = y;
 
-			// lookup up and left one
-			if (currentBoard[x - 1,y - 1] == ChessPiece.Empty && (x-1) >= 0 && (y-1) >= 0)
-                if (IsOpponentPiece(currentBoard[x - 1, y - 1], myColor))
+            // looking forward 1
+            newY = y + 1;
+            if (newY < ChessBoard.NumberOfRows)
+            {
+                // look forward 1
+                if (currentBoard[x, newY] == ChessPiece.Empty || IsOpponentPiece(currentBoard[x, newY], myColor))
                 {
-                    allMoves.Add(new ChessMove(new ChessLocation(x, y), new ChessLocation(x - 1, y - 1)));
+                    allMoves.Add(new ChessMove(new ChessLocation(x, y), new ChessLocation(x, newY)));
                 }
-
-
-			// lookup up one
-			if (currentBoard[x - 1,y] == ChessPiece.Empty && (x-1) >= 0)
-                if (IsOpponentPiece(currentBoard[x - 1, y], myColor))
+                // look forward 1 and left 1
+                newX = x - 1;
+                if (newX >= 0 && (currentBoard[newX, newY] == ChessPiece.Empty || IsOpponentPiece(currentBoard[newX, newY], myColor)))
                 {
-                    allMoves.Add(new ChessMove(new ChessLocation(x, y), new ChessLocation(x - 1, y)));
+                    allMoves.Add(new ChessMove(new ChessLocation(x, y), new ChessLocation(newX, newY)));
                 }
-
-            // lookup up one and right
-            if (currentBoard[x - 1, y + 1] == ChessPiece.Empty && (x - 1) >= 0 && (y + 1) < ChessBoard.NumberOfRows)
-                if (IsOpponentPiece(currentBoard[x - 1, y + 1], myColor))
+                // look forward 1 and right 1
+                newX = x + 1;
+                if (newX < ChessBoard.NumberOfColumns && (currentBoard[newX, newY] == ChessPiece.Empty || IsOpponentPiece(currentBoard[newX, newY], myColor)))
                 {
-                    allMoves.Add(new ChessMove(new ChessLocation(x,y), new ChessLocation(x - 1, y + 1)));
+                    allMoves.Add(new ChessMove(new ChessLocation(x, y), new ChessLocation(newX, newY)));
                 }
+            }
 
-			// lookup down and left one
-			if (currentBoard[x + 1,y - 1] == ChessPiece.Empty && (x+1) >= 0 && (y-1) >= 0)
-                if (IsOpponentPiece(currentBoard[x + 1, y - 1], myColor))
+            // looking left
+            newX = x - 1;
+            if (newX >= 0 && (currentBoard[newX, y] == ChessPiece.Empty || IsOpponentPiece(currentBoard[newX, y], myColor)))
+            {
+                allMoves.Add(new ChessMove(new ChessLocation(x, y), new ChessLocation(newX, y)));
+            }
+
+            // looking right
+            newX = x + 1;
+            if (newX < ChessBoard.NumberOfColumns && (currentBoard[newX, y] == ChessPiece.Empty || IsOpponentPiece(currentBoard[newX, y], myColor)))
+            {
+                allMoves.Add(new ChessMove(new ChessLocation(x, y), new ChessLocation(newX, y)));
+            }
+
+            // looking backward 1
+            newY = y - 1;
+            if (newY >= 0)
+            {
+                // look backward 1
+                if (currentBoard[x, newY] == ChessPiece.Empty || IsOpponentPiece(currentBoard[x, newY], myColor))
                 {
-                    allMoves.Add(new ChessMove(new ChessLocation(x,y), new ChessLocation(x + 1, y - 1)));
+                    allMoves.Add(new ChessMove(new ChessLocation(x, y), new ChessLocation(x, newY)));
                 }
-
-			// lookup down one
-			if (currentBoard[x + 1,y] == ChessPiece.Empty && (x+1) >= 0)
-                if (IsOpponentPiece(currentBoard[x + 1, y], myColor))
+                // look backward 1 and left 1
+                newX = x - 1;
+                if (newX >= 0 && (currentBoard[newX, newY] == ChessPiece.Empty || IsOpponentPiece(currentBoard[newX, newY], myColor)))
                 {
-                    allMoves.Add(new ChessMove(new ChessLocation(x, y), new ChessLocation(x + 1, y)));
+                    allMoves.Add(new ChessMove(new ChessLocation(x, y), new ChessLocation(newX, newY)));
                 }
-
-            // lookup down one and right
-            if (currentBoard[x + 1, y + 1] == ChessPiece.Empty && (x + 1) < ChessBoard.NumberOfColumns&& (y + 1) < ChessBoard.NumberOfRows)
-                if (IsOpponentPiece(currentBoard[x + 1, y + 1], myColor))
+                // look backward 1 and right 1
+                newX = x + 1;
+                if (newX < ChessBoard.NumberOfColumns && (currentBoard[newX, newY] == ChessPiece.Empty || IsOpponentPiece(currentBoard[newX, newY], myColor)))
                 {
-                    allMoves.Add(new ChessMove(new ChessLocation(x, y), new ChessLocation(x + 1, y + 1)));
+                    allMoves.Add(new ChessMove(new ChessLocation(x, y), new ChessLocation(newX, newY)));
                 }
-
-            // look right
-            if (currentBoard[x, y + 1] == ChessPiece.Empty && (y + 1) < ChessBoard.NumberOfRows)
-                if (IsOpponentPiece(currentBoard[x, y + 1], myColor))
-                {
-                allMoves.Add(new ChessMove(new ChessLocation(x,y), new ChessLocation(x, y + 1)));
-                }
-   
-
-
-            // look left
-            if (currentBoard[x, y - 1] == ChessPiece.Empty && (y - 1) >= 0)
-                if (IsOpponentPiece(currentBoard[x, y - 1], myColor))
-                {
-                    allMoves.Add(new ChessMove(new ChessLocation(x, y), new ChessLocation(x, y - 1)));
-                }
+            }
         }
 
         /// <summary>
@@ -386,7 +657,7 @@ namespace StudentAI
         /// <param name="x">The bishops x location on the board
         /// <param name="y">The bishops y location on the board
         ///
-        public void AddAllPossibleMovesDiagonal ( ref List<ChessMove> allMoves, ref ChessBoard currentBoard, ChessColor myColor, int x, int y )
+        private void AddAllPossibleMovesDiagonal(ref List<ChessMove> allMoves, ref ChessBoard currentBoard, ChessColor myColor, int x, int y)
 		{
 			int newX, newY;
 			bool bStop = false;
@@ -484,7 +755,7 @@ namespace StudentAI
         /// <param name="x">The bishops x location on the board
         /// <param name="y">The bishops y location on the board
         ///
-        public void AddAllPossibleMovesVertical ( ref List<ChessMove> allMoves, ref ChessBoard currentBoard, ChessColor myColor, int x, int y )
+        private void AddAllPossibleMovesVertical(ref List<ChessMove> allMoves, ref ChessBoard currentBoard, ChessColor myColor, int x, int y)
 		{
 			// looking up
 			for ( int newY = y - 1; newY >= 0; newY-- )
@@ -530,7 +801,7 @@ namespace StudentAI
         /// <param name="x">The bishops x location on the board
         /// <param name="y">The bishops y location on the board
         ///
-        public void AddAllPossibleMovesHorizontal ( ref List<ChessMove> allMoves, ref ChessBoard currentBoard, ChessColor myColor, int x, int y )
+        private void AddAllPossibleMovesHorizontal(ref List<ChessMove> allMoves, ref ChessBoard currentBoard, ChessColor myColor, int x, int y)
 		{
 			// looking right
 			for ( int newX = x + 1; newX < ChessBoard.NumberOfColumns; newX++ )
