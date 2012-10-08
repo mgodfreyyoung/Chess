@@ -284,7 +284,7 @@ namespace StudentAI
             List<ChessMove> allPossibleMoves = GetAllPossibleMoves(ref boardBeforeMove, myColor);
             ChessBoard tempBoard = null;
             ChessColor opponentColor = (myColor == ChessColor.Black) ? ChessColor.White : ChessColor.Black;
-            int bestValue = System.Int32.MaxValue;
+            int bestValue = System.Int32.MinValue;
             int value;
 
             // assign utility value if we're at the leaf node, this
@@ -300,7 +300,7 @@ namespace StudentAI
             {
                 tempBoard = boardBeforeMove.Clone();
                 tempBoard.MakeMove(move);
-                value = MaxValue(tempBoard, opponentColor, nPlies - 1);
+                value = MinValue(tempBoard, opponentColor, nPlies - 1);
                 if (value > bestValue)
                 {
                     bestValue = value;
