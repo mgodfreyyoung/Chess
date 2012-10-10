@@ -8,8 +8,17 @@ namespace StudentAI
 {
     public class StudentAI : IChessAI
     {
-        #region IChessAI Members that are implemented by the Student
+        //ChessMove myChosenMove = null;
+        //ChessFlag myFlag = ChessFlag.Stalemate;
+              //myChosenMove = new ChessMove(null, null);
+              //myChosenMove.Flag = ChessFlag.Stalemate;
+      
 
+        ChessMove lastMove = null;
+        ChessMove nextLastMove = null;
+        int ifSameAs = 0;
+        #region IChessAI Members that are implemented by the Student
+        
         public const int MAX_NUM_PLIES = 3;
 
         /// <summary>
@@ -18,6 +27,7 @@ namespace StudentAI
         public string Name
         {
 #if DEBUG
+
             get { return "StudentAI (Debug)"; }
 #else
             get { return "StudentAI"; }
@@ -112,11 +122,19 @@ namespace StudentAI
         /// <returns> Returns the best chess move the player has for the given chess board</returns>
         public ChessMove GetNextMove(ChessBoard board, ChessColor myColor)
         {
+            
+            //List<ChessMove> allMoves = GetAllMoves(board, myColor);
+            //ChessMove myChosenMove = null;
             ChessMove bestMove = MiniMaxDecision(board, myColor, MAX_NUM_PLIES);
+            //bestMove.Flag = ChessFlag.Check;
+            //myChosenMove = allMoves[bestMove];
 
+           // SetDecisionTree(allMoves, bestMove, board.Clone(), myColor);
+  
             return bestMove;
         }
 
+        
         /// <summary>
         /// Validates a move. The framework uses this to validate the opponents move.
         /// </summary>
@@ -143,7 +161,7 @@ namespace StudentAI
             // make sure they didn't try to move one of our pieces
             if (IsOpponentPiece(piece, colorOfPlayerMoving))
                 return false; // they tried to move our pieces! cheater!
-
+                //return myFlag;
             // get all possible moves for the piece in question
             switch (piece)
             {
@@ -199,8 +217,89 @@ namespace StudentAI
         private int Utility(ChessBoard board, ChessColor myColor)
         {
             // TODO <Mike> Write this heuristic function
-            return 0;
+            {
+                // TODO <Mike> Write this heuristic function
+
+                //f(p) = 200(K-K')
+                //+ 9(Q-Q')
+                //+ 5(R-R')
+                //+ 3(B-B' + N-N')
+                //+ 1(P-P')
+                ChessPiece piece = ChessPiece.Empty;
+
+                int score = 0;
+                if (myColor == ChessColor.White)
+                {
+                    for (int i = 0; i < ChessBoard.NumberOfRows; i++)
+                        for (int j = 0; j < ChessBoard.NumberOfColumns; j++)
+                            if (board[i, j] != ChessPiece.Empty)
+                            {
+                                piece = board[i, j];
+                                if (piece == ChessPiece.BlackBishop || piece == ChessPiece.BlackKnight)
+                                    score = score - 3000;
+                                else if (piece == ChessPiece.BlackPawn)
+                                    score = score - 1000;
+                                else if (piece == ChessPiece.BlackRook)
+                                    score = score - 5000;
+                                else if (piece == ChessPiece.BlackQueen)
+                                    score = score - 9000;
+                                else if (piece == ChessPiece.BlackKing)
+                                    score = score - 900000;
+                                else if (piece == ChessPiece.WhiteBishop || piece == ChessPiece.WhiteKnight)
+                                    score = score + 3000;
+                                else if (piece == ChessPiece.WhitePawn)
+                                    score = score + 1000;
+                                else if (piece == ChessPiece.WhiteRook)
+                                    score = score + 5000;
+                                else if (piece == ChessPiece.WhiteQueen)
+                                    score = score + 9000;
+                                else if (piece == ChessPiece.WhiteKing)
+                                    score = score + 900000;
+
+                            }
+                }
+
+                else if (myColor == ChessColor.Black)
+                {
+                    for (int i = 0; i < ChessBoard.NumberOfRows; i++)
+                        for (int j = 0; j < ChessBoard.NumberOfColumns; j++)
+                            if (board[i, j] != ChessPiece.Empty)
+                            {
+                                piece = board[i, j];
+                                if (piece == ChessPiece.BlackBishop || piece == ChessPiece.BlackBishop)
+                                    score = score + 3000;
+                                else if (piece == ChessPiece.BlackPawn)
+                                    score = score + 1000;
+                                else if (piece == ChessPiece.BlackRook)
+                                    score = score + 5000;
+                                else if (piece == ChessPiece.BlackQueen)
+                                    score = score + 9000;
+                                else if (piece == ChessPiece.BlackKing)
+                                    score = score + 900000;
+                                else if (piece == ChessPiece.WhiteBishop || piece == ChessPiece.WhiteBishop)
+                                    score = score - 3000;
+                                else if (piece == ChessPiece.WhitePawn)
+                                    score = score - 1000;
+                                else if (piece == ChessPiece.WhiteRook)
+                                    score = score - 5000;
+                                else if (piece == ChessPiece.WhiteQueen)
+                                    score = score - 9000;
+                                else if (piece == ChessPiece.WhiteKing)
+                                    score = score - 900000;
+
+                            }
+                }
+
+               Random random = new Random();
+               //int randomNumber = random.Next(0, 100);
+               if (score == 0 || ifSameAs == score)
+                  score = random.Next(0, 1000);
+               ifSameAs = score;
+                                                     
+               return score;
+            }
         }
+    
 
         /// <summary>
         /// This function looks ahead nPlies moves to determine what the best move is now
@@ -213,10 +312,16 @@ namespace StudentAI
         {
             List<ChessMove> allPossibleMoves = GetAllPossibleMoves(ref boardBeforeMove, myColor);
             ChessBoard tempBoard = null;
+            ChessBoard finalBoard = null;
+            ChessBoard checkBoard = null;
             ChessColor opponentColor = (myColor == ChessColor.Black) ? ChessColor.White : ChessColor.Black;
             ChessMove bestMove = null;
+            ChessMove checkMove = null;
             int bestValue = System.Int32.MinValue;
             int value;
+            int checkValue = System.Int32.MinValue;
+            int tmpValue;
+
 
             // peek ahead through all possible moves and find the best one
             foreach (ChessMove move in allPossibleMoves)
@@ -224,11 +329,72 @@ namespace StudentAI
                 tempBoard = boardBeforeMove.Clone();
                 tempBoard.MakeMove(move);
                 value = MinValue(tempBoard, opponentColor, nPlies - 1);
-                if (value > bestValue)
+                if (value > bestValue && nextLastMove != move)
                 {
+                    finalBoard = tempBoard.Clone();
                     bestValue = value;
                     bestMove = move;
                 }
+            }
+            List<ChessMove> allPossibleMoves2 = GetAllPossibleMoves(ref finalBoard, myColor);
+            foreach (ChessMove move in allPossibleMoves2)
+            {
+                tempBoard = finalBoard.Clone();
+                tempBoard.MakeMove(move);
+                tmpValue = Utility(tempBoard, myColor);
+                if (checkValue < tmpValue)
+                {
+                    //checkBoard = tempBoard.Clone();
+                    checkValue = tmpValue;
+                    checkMove = move;
+                }
+            }    
+            //finalBoard.MakeMove(bestMove);
+            //checkValue = MaxValue(finalBoard, opponentColor, 1);
+            if (checkValue >= 500000)
+            {
+                //finalBoard.MakeMove(bestMove);
+                bestMove.Flag = ChessFlag.Checkmate;
+                List<ChessMove> allPossibleMoves3 = GetAllPossibleMoves(ref finalBoard, opponentColor);
+                foreach (ChessMove move in allPossibleMoves3)
+                {
+                    tempBoard = finalBoard.Clone();
+                    tempBoard.MakeMove(move);
+                    List<ChessMove> allPossibleMoves4 = GetAllPossibleMoves(ref finalBoard, opponentColor);
+                    //if (allPossibleMoves4.Find(move))
+                    tmpValue = Utility(tempBoard, opponentColor);
+                    if (tmpValue >=-500000)
+                    {
+                        bestMove.Flag = ChessFlag.Check;
+                    }
+                }   
+            }
+
+            //AddAllPossibleMovesToDecisionTree(allPossibleMoves, bestMove, boardBeforeMove.Clone(), myColor);
+            // bestMove.Flag = ChessFlag.Checkmate;
+            //int test = 1000;
+            //check for check here....
+            //ChessPiece piece = ChessPiece.Empty;
+            //piece = bestMove;
+            //bestMove.Flag = ChessFlag.Stalemate;
+            //lastMove = bestMove;
+
+            //This loop makes sure stalemate does not take place
+            if (nextLastMove == null)
+            {
+                if (lastMove == null)
+                    lastMove = bestMove;
+                else
+                {
+                    nextLastMove = lastMove;
+                    lastMove = bestMove;
+                }
+
+            }
+            else
+            {
+                nextLastMove = lastMove;
+                lastMove = bestMove;
             }
 
             return bestMove;
@@ -255,6 +421,7 @@ namespace StudentAI
             if (nPlies == 0)
             {
                 return Utility(boardBeforeMove, opponentColor);
+                
             }
 
             // peek ahead through all possible moves and find the best one
@@ -301,12 +468,16 @@ namespace StudentAI
                 tempBoard = boardBeforeMove.Clone();
                 tempBoard.MakeMove(move);
                 value = MinValue(tempBoard, opponentColor, nPlies - 1);
+                //if (value == 0)
+                    
                 if (value > bestValue)
                 {
                     bestValue = value;
                 }
             }
 
+           
+        
             return bestValue;
         }
 
@@ -338,7 +509,7 @@ namespace StudentAI
         {
             List<ChessMove> allMoves = new List<ChessMove>();
             ChessPiece piece;
-
+           
             for (int x = 0; x < ChessBoard.NumberOfColumns; x++)
             {
                 for (int y = 0; y < ChessBoard.NumberOfRows; y++)
@@ -395,15 +566,18 @@ namespace StudentAI
 		{
             int newX;
             int newY;
-
+            //DecisionTree dt = new DecisionTree(currentBoard);                     //come back to this and setup decision tree!!
+            //SetDecisionTree(dt);
             if (myColor == ChessColor.Black)
             {
                 newY = y + 1;
                 if (newY < ChessBoard.NumberOfRows)
                 {
+
                     newX = x + 1;
                     if (newX < ChessBoard.NumberOfColumns && IsOpponentPiece(currentBoard[newX, newY], myColor)) // capture diagonally forward and right
                     {
+                        //currentBoard.RawBoard
                         allMoves.Add(new ChessMove(new ChessLocation(x, y), new ChessLocation(newX, newY)));
                     }
                     newX = x - 1;
@@ -416,7 +590,8 @@ namespace StudentAI
                 {
                     allMoves.Add(new ChessMove(new ChessLocation(x, y), new ChessLocation(x, newY)));
                     newY = y + 2;
-                    if (newY < ChessBoard.NumberOfRows && currentBoard[x, newY] == ChessPiece.Empty) // forward 2
+
+                    if (newY < ChessBoard.NumberOfRows && currentBoard[x, newY] == ChessPiece.Empty && y == 1) // forward 2
                     {
                         allMoves.Add(new ChessMove(new ChessLocation(x, y), new ChessLocation(x, newY)));
                     }
@@ -442,7 +617,7 @@ namespace StudentAI
                 {
                     allMoves.Add(new ChessMove(new ChessLocation(x, y), new ChessLocation(x, newY)));
                     newY = y - 2;
-                    if (newY >= 0 && currentBoard[x, newY] == ChessPiece.Empty) // forward 2
+                    if (newY >= 0 && currentBoard[x, newY] == ChessPiece.Empty && y == 6) // forward 2
                     {
                         allMoves.Add(new ChessMove(new ChessLocation(x, y), new ChessLocation(x, newY)));
                     }
