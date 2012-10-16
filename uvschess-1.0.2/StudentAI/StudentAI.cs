@@ -288,7 +288,33 @@ namespace StudentAI
                return score;
             }
         }
-    
+
+        /// <summary>
+        /// Determine if someone has lost
+        /// </summary>
+        /// <param name="board">The board to examine</param>
+        /// <returns>true if someone lost, false otherwise</returns>
+        public bool TerminalTest(ChessBoard board)
+        {
+            ChessPiece piece;
+            int numKings = 0;
+
+            for (int i = 0; i < ChessBoard.NumberOfRows; i++)
+            {
+                for (int j = 0; j < ChessBoard.NumberOfColumns; j++)
+                {
+                    piece = board[i,j];
+                    if (piece == ChessPiece.BlackKing || piece == ChessPiece.WhiteKing)
+                    {
+                        numKings++;
+                        if (numKings >= 2)
+                            return false;
+                    }
+                }
+            }
+
+            return true; // we didn't find both kings so somebody lost
+        }
 
         /// <summary>
         /// This function looks ahead nPlies moves to determine what the best move is now
@@ -354,7 +380,7 @@ namespace StudentAI
             // assign utility value if we're at the leaf node, this
             // value will bubble up with each branch choosing what
             // it considers to be the "best" value as it's value.
-            if (nPlies == 0)
+            if (nPlies == 0 || TerminalTest(boardBeforeMove))
             {
                 return Utility(boardBeforeMove, opponentColor, allPossibleMoves.Count);
                 
@@ -401,7 +427,7 @@ namespace StudentAI
             // assign utility value if we're at the leaf node, this
             // value will bubble up with each branch choosing what
             // it considers to be the "best" value as it's value.
-            if (nPlies == 0)
+            if (nPlies == 0 || TerminalTest(boardBeforeMove))
             {
                 return Utility(boardBeforeMove, myColor, allPossibleMoves.Count);
             }
