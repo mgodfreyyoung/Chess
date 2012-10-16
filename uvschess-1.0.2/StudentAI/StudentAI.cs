@@ -456,7 +456,8 @@ namespace StudentAI
         private bool IsKingInCheck(ChessBoard board, ChessColor myColor)
         {
             ChessColor opponentColor = (myColor == ChessColor.White) ? ChessColor.Black : ChessColor.White;
-            List<ChessMove> allOpponentMoves = GetAllPossibleMoves(ref board, opponentColor);
+            List<ChessMove> examineMoves = new List<ChessMove>();
+            List<ChessMove> allMoves = new List<ChessMove>();
             ChessPiece piece;
             ChessLocation myKingLoc = null;
             bool bContinue = true;
@@ -479,10 +480,98 @@ namespace StudentAI
             if (myKingLoc == null)
                 return true; // well if the king doesn't exist then I guess it's most useful to say it's in check even tho it means something else has gone drastically wrong
 
-            foreach (ChessMove move in allOpponentMoves)
+            // find all pieces that could attack my king's location
+            // WARNING: it might look wrong to use "myColor" but it's not! This is an optimization;
+            // We're looking at all queen and knight moves from our kings location, we find any opponent
+            // pieces in any of those moves and then see if those pieces can attack my king. If they can
+            // then he's in check (or checkmate). This optimization prevents us from having to check all
+            // possible moves for all pieces.
+            AddAllPossibleMovesQueen(ref examineMoves, ref board, myColor, myKingLoc.X, myKingLoc.Y);
+            foreach (ChessMove move in examineMoves)
             {
-                if (move.To.X == myKingLoc.X && move.To.Y == myKingLoc.Y)
-                    return true; // yep, my king is in check
+                piece = board[move.To.X, move.To.Y];
+                if (piece != null)
+                {
+                    allMoves.Clear();
+                    switch (piece)
+                    {
+                        case ChessPiece.BlackBishop:
+                        case ChessPiece.WhiteBishop:
+                            AddAllPossibleMovesBishop(ref allMoves, ref board, opponentColor, move.To.X, move.To.Y);
+                            break;
+                        case ChessPiece.BlackKing:
+                        case ChessPiece.WhiteKing:
+                            AddAllPossibleMovesKing(ref allMoves, ref board, opponentColor, move.To.X, move.To.Y);
+                            break;
+                        case ChessPiece.BlackKnight:
+                        case ChessPiece.WhiteKnight:
+                            AddAllPossibleMovesKnight(ref allMoves, ref board, opponentColor, move.To.X, move.To.Y);
+                            break;
+                        case ChessPiece.BlackPawn:
+                        case ChessPiece.WhitePawn:
+                            AddAllPossibleMovesPawn(ref allMoves, ref board, opponentColor, move.To.X, move.To.Y);
+                            break;
+                        case ChessPiece.BlackQueen:
+                        case ChessPiece.WhiteQueen:
+                            AddAllPossibleMovesQueen(ref allMoves, ref board, opponentColor, move.To.X, move.To.Y);
+                            break;
+                        case ChessPiece.BlackRook:
+                        case ChessPiece.WhiteRook:
+                            AddAllPossibleMovesRook(ref allMoves, ref board, opponentColor, move.To.X, move.To.Y);
+                            break;
+                        default:
+                            break;
+                    }
+                    foreach (ChessMove opMove in allMoves)
+                    {
+                        if (opMove.To.X == myKingLoc.X && opMove.To.Y == myKingLoc.Y)
+                            return true;
+                    }
+                }
+            }
+            examineMoves.Clear();
+            AddAllPossibleMovesKnight(ref examineMoves, ref board, myColor, myKingLoc.X, myKingLoc.Y);
+            foreach (ChessMove move in examineMoves)
+            {
+                piece = board[move.To.X, move.To.Y];
+                if (piece != null)
+                {
+                    allMoves.Clear();
+                    switch (piece)
+                    {
+                        case ChessPiece.BlackBishop:
+                        case ChessPiece.WhiteBishop:
+                            AddAllPossibleMovesBishop(ref allMoves, ref board, opponentColor, move.To.X, move.To.Y);
+                            break;
+                        case ChessPiece.BlackKing:
+                        case ChessPiece.WhiteKing:
+                            AddAllPossibleMovesKing(ref allMoves, ref board, opponentColor, move.To.X, move.To.Y);
+                            break;
+                        case ChessPiece.BlackKnight:
+                        case ChessPiece.WhiteKnight:
+                            AddAllPossibleMovesKnight(ref allMoves, ref board, opponentColor, move.To.X, move.To.Y);
+                            break;
+                        case ChessPiece.BlackPawn:
+                        case ChessPiece.WhitePawn:
+                            AddAllPossibleMovesPawn(ref allMoves, ref board, opponentColor, move.To.X, move.To.Y);
+                            break;
+                        case ChessPiece.BlackQueen:
+                        case ChessPiece.WhiteQueen:
+                            AddAllPossibleMovesQueen(ref allMoves, ref board, opponentColor, move.To.X, move.To.Y);
+                            break;
+                        case ChessPiece.BlackRook:
+                        case ChessPiece.WhiteRook:
+                            AddAllPossibleMovesRook(ref allMoves, ref board, opponentColor, move.To.X, move.To.Y);
+                            break;
+                        default:
+                            break;
+                    }
+                    foreach (ChessMove opMove in allMoves)
+                    {
+                        if (opMove.To.X == myKingLoc.X && opMove.To.Y == myKingLoc.Y)
+                            return true;
+                    }
+                }
             }
 
             return false; // nope, my king is not in check
