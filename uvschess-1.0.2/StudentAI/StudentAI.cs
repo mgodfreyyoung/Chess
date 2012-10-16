@@ -190,9 +190,15 @@ namespace StudentAI
             // see if the move was possible
             foreach ( ChessMove move in allMoves )
             {
-                if (move.To.X == moveToCheck.To.X && move.To.Y == moveToCheck.To.Y)
+                if (move.To.X == moveToCheck.To.X && move.To.Y == moveToCheck.To.Y && 
+                    move.From.X == moveToCheck.From.X && move.From.Y == moveToCheck.From.Y)
                 {
-                    bIsValid = true; // yep, it's a valid move
+                    ChessBoard tmpBoard = boardBeforeMove.Clone();
+                    tmpBoard.MakeMove(move);
+                    if (!IsKingInCheck(tmpBoard, colorOfPlayerMoving))
+                    {
+                        bIsValid = true; // yep, it's a valid move
+                    }
                     break;
                 }
             }
@@ -205,11 +211,14 @@ namespace StudentAI
         /// called from MaxValue() and MinValue() to determine the value of the leaf
         /// nodes.
         /// </summary>
-        /// <param name="board"></param>The board to evaluate
-        /// <param name="myColor"></param>The color of my pieces
-        /// <returns></returns>The utility value of this board
-        private int Utility(ChessBoard board, ChessColor myColor)
+        /// <param name="board">The board to evaluate</param>
+        /// <param name="myColor">The color of my pieces</param>
+        /// <param name="numPossibleMoves">The number of moves possible for the specified color</param>
+        /// <returns>The utility value of this board</returns>
+        private int Utility(ChessBoard board, ChessColor myColor, int numPossibleMoves)
         {
+            if (numPossibleMoves == 0)
+                return -500000; // don't allow stalemate
             {
                 ChessPiece piece = ChessPiece.Empty;
                 int score = 0;
@@ -271,6 +280,7 @@ namespace StudentAI
                                     score = score - 900000;
                             }
                 }
+
                Random random = new Random();
                if (score == 0 || ifSameAs == score)
                   score = random.Next(0, 1000);
@@ -289,93 +299,37 @@ namespace StudentAI
         /// <returns>The best move, null if none</returns>
         private ChessMove MiniMaxDecision(ChessBoard boardBeforeMove, ChessColor myColor, int nPlies)
         {
-            List<ChessMove> allPossibleMoves = GetAllPossibleMoves(ref boardBeforeMove, myColor);
-            ChessBoard tempBoard = null;
             ChessBoard finalBoard = null;
-            ChessBoard checkBoard = null;
-            ChessBoard tempBoard2 = null;
             ChessColor opponentColor = (myColor == ChessColor.Black) ? ChessColor.White : ChessColor.Black;
             ChessMove bestMove = null;
-            ChessMove checkMove = null;
-            int bestValue = System.Int32.MinValue;
             int value;
-            int checkValue = System.Int32.MinValue;
-            int tmpValue;
-
 
             // peek ahead through all possible moves and find the best one
-            foreach (ChessMove move in allPossibleMoves)
+            value = MaxValue(boardBeforeMove, myColor, Int32.MinValue, Int32.MaxValue, ref bestMove, nPlies);
+            if (bestMove == null)
             {
-                tempBoard = boardBeforeMove.Clone();
-                tempBoard.MakeMove(move);
-                value = MinValue(tempBoard, opponentColor, nPlies - 1);
-                if (value > bestValue && nextLastMove != move)
-                {
-                    finalBoard = tempBoard.Clone();
-                    bestValue = value;
-                    bestMove = move;
-                }
+                bestMove = new ChessMove(null, null);
+                bestMove.Flag = ChessFlag.Stalemate;
+                return bestMove;
             }
-            List<ChessMove> allPossibleMoves2 = GetAllPossibleMoves(ref finalBoard, myColor);
-            foreach (ChessMove move in allPossibleMoves2)
-            {
-                tempBoard = finalBoard.Clone();
-                tempBoard.MakeMove(move);
-                tmpValue = Utility(tempBoard, myColor);
-                if (checkValue < tmpValue)
-                {
-                    checkBoard = tempBoard.Clone();
-                    checkValue = tmpValue;
-                    checkMove = move;
-                }
-            }    
+            finalBoard = boardBeforeMove.Clone();
+            finalBoard.MakeMove(bestMove);
 
-            if (checkValue >= 500000)
+            // see if they are in check / checkmate / stalemate
+            List<ChessMove> allPossibleMoves2 = GetAllLegalMoves(ref finalBoard, opponentColor);
+            if (IsKingInCheck(finalBoard, opponentColor))
             {
-                bool flag = false;
-                //finalBoard.MakeMove(bestMove);
-                bestMove.Flag = ChessFlag.Checkmate;
-                List<ChessMove> allPossibleMoves3 = GetAllPossibleMoves(ref finalBoard, opponentColor);
-                foreach (ChessMove move in allPossibleMoves3)
-                {
-                    tempBoard = finalBoard.Clone();
-                    tempBoard.MakeMove(move);
-                    List<ChessMove> allPossibleMoves4 = GetAllPossibleMoves(ref tempBoard, myColor);
-                    flag = false;
-                    foreach (ChessMove move2 in allPossibleMoves4)
-                    {
-                        tempBoard2 = tempBoard.Clone();
-                        tempBoard2.MakeMove(move2);
-                        tmpValue = Utility(tempBoard2, myColor);
-                        if (tmpValue >= 500000)
-                        {
-                            flag = true;
-                            break;
-                        }
-
-                    }
-                    if (flag == false)
-                    {
-                        bestMove.Flag = ChessFlag.Check;
-                        break;
-                    }
-                }
+                bestMove.Flag = ChessFlag.Check;
             }
-            //This loop makes sure stalemate does not take place
-            if (nextLastMove == null)
+            if (allPossibleMoves2.Count == 0 )
             {
-                if (lastMove == null)
-                    lastMove = bestMove;
+                if (bestMove.Flag == ChessFlag.Check)
+                {
+                    bestMove.Flag = ChessFlag.Checkmate;
+                }
                 else
-                {
-                    nextLastMove = lastMove;
-                    lastMove = bestMove;
+                { // opponent is in stalement
                 }
-            }
-            else
-            {
-                nextLastMove = lastMove;
-                lastMove = bestMove;
             }
 
             return bestMove;
@@ -388,20 +342,21 @@ namespace StudentAI
         /// <param name="myColor"></param>The color of my (the opponent) pieces
         /// <param name="nPlies"></param>The number of plies remaining to look ahead
         /// <returns>The utility value of this branch</returns>
-        private int MinValue(ChessBoard boardBeforeMove, ChessColor myColor, int nPlies)
+        private int MinValue(ChessBoard boardBeforeMove, ChessColor myColor, int alpha, int beta, ref ChessMove chosenMove, int nPlies)
         {
             List<ChessMove> allPossibleMoves = GetAllPossibleMoves(ref boardBeforeMove, myColor);
             ChessBoard tempBoard = null;
             ChessColor opponentColor = (myColor == ChessColor.Black) ? ChessColor.White : ChessColor.Black;
-            int bestValue = System.Int32.MaxValue;
+            int bestValue = Int32.MaxValue;
             int value;
+            ChessMove valueMove = null;
 
             // assign utility value if we're at the leaf node, this
             // value will bubble up with each branch choosing what
             // it considers to be the "best" value as it's value.
             if (nPlies == 0)
             {
-                return Utility(boardBeforeMove, opponentColor);
+                return Utility(boardBeforeMove, opponentColor, allPossibleMoves.Count);
                 
             }
             // peek ahead through all possible moves and find the best one
@@ -409,10 +364,18 @@ namespace StudentAI
             {
                 tempBoard = boardBeforeMove.Clone();
                 tempBoard.MakeMove(move);
-                value = MaxValue(tempBoard, opponentColor, nPlies - 1);
+                value = MaxValue(tempBoard, opponentColor, alpha, beta, ref valueMove, nPlies - 1);
                 if (value < bestValue)
-                {
                     bestValue = value;
+                if (bestValue <= alpha)
+                {
+                    chosenMove = null;
+                    return bestValue; // bail, max will never choose this value
+                }
+                if (bestValue < beta)
+                {
+                    beta = bestValue;
+                    chosenMove = move;
                 }
             }
 
@@ -426,20 +389,21 @@ namespace StudentAI
         /// <param name="myColor"></param>The color of my pieces
         /// <param name="nPlies"></param>The number of plies remaining to look ahead
         /// <returns>The utility value of this branch</returns>
-        public int MaxValue(ChessBoard boardBeforeMove, ChessColor myColor, int nPlies)
+        public int MaxValue(ChessBoard boardBeforeMove, ChessColor myColor, int alpha, int beta, ref ChessMove chosenMove, int nPlies)
         {
             List<ChessMove> allPossibleMoves = GetAllPossibleMoves(ref boardBeforeMove, myColor);
             ChessBoard tempBoard = null;
             ChessColor opponentColor = (myColor == ChessColor.Black) ? ChessColor.White : ChessColor.Black;
-            int bestValue = System.Int32.MinValue;
+            int bestValue = Int32.MinValue;
             int value;
+            ChessMove valueMove = null;
 
             // assign utility value if we're at the leaf node, this
             // value will bubble up with each branch choosing what
             // it considers to be the "best" value as it's value.
             if (nPlies == 0)
             {
-                return Utility(boardBeforeMove, myColor);
+                return Utility(boardBeforeMove, myColor, allPossibleMoves.Count);
             }
 
             // peek ahead through all possible moves and find the best one
@@ -447,17 +411,21 @@ namespace StudentAI
             {
                 tempBoard = boardBeforeMove.Clone();
                 tempBoard.MakeMove(move);
-                value = MinValue(tempBoard, opponentColor, nPlies - 1);
-                //if (value == 0)
-                    
+                value = MinValue(tempBoard, opponentColor, alpha, beta, ref valueMove, nPlies - 1);
                 if (value > bestValue)
-                {
                     bestValue = value;
+                if (bestValue >= beta)
+                {
+                    chosenMove = null;
+                    return bestValue; // bail, min will never choose this value
+                }
+                if (bestValue > alpha)
+                {
+                    alpha = bestValue;
+                    chosenMove = move;
                 }
             }
 
-           
-        
             return bestValue;
         }
 
@@ -480,10 +448,78 @@ namespace StudentAI
 		}
 
         /// <summary>
-		/// This function discovers all possible moves for the piece at the specified location and adds the moves to the list
+        /// Determine whether the specified players king is in check
+        /// </summary>
+        /// <param name="board"></param>The current board state
+        /// <param name="myColor"></param>The color of the player in question
+        /// <returns>true if player myColor's king is in check, otherwise false</returns>
+        private bool IsKingInCheck(ChessBoard board, ChessColor myColor)
+        {
+            ChessColor opponentColor = (myColor == ChessColor.White) ? ChessColor.Black : ChessColor.White;
+            List<ChessMove> allOpponentMoves = GetAllPossibleMoves(ref board, opponentColor);
+            ChessPiece piece;
+            ChessLocation myKingLoc = null;
+            bool bContinue = true;
+
+            // find my king
+            for ( int i = 0; i < ChessBoard.NumberOfRows && bContinue; i++ )
+            {
+                for ( int j = 0; j < ChessBoard.NumberOfColumns; j++ )
+                {
+                    piece = board[i,j];
+                    if ( piece == ChessPiece.BlackKing && myColor == ChessColor.Black || piece == ChessPiece.WhiteKing && myColor == ChessColor.White )
+                    {
+                        myKingLoc = new ChessLocation(i, j);
+                        bContinue = false;
+                        break;
+                    }
+                }
+            }
+
+            if (myKingLoc == null)
+                return true; // well if the king doesn't exist then I guess it's most useful to say it's in check even tho it means something else has gone drastically wrong
+
+            foreach (ChessMove move in allOpponentMoves)
+            {
+                if (move.To.X == myKingLoc.X && move.To.Y == myKingLoc.Y)
+                    return true; // yep, my king is in check
+            }
+
+            return false; // nope, my king is not in check
+        }
+
         /// <summary>
-		/// <param name="currentBoard">The current board state
-		/// <param name="myColor">The color of the player whos moving
+        /// This function discovers all legal moves for the piece at the specified location and adds the moves to the list
+        /// <summary>
+        /// <param name="currentBoard">The current board state
+        /// <param name="myColor">The color of the player whos moving
+        /// <returns>A list of all legal moves</returns>
+        private List<ChessMove> GetAllLegalMoves(ref ChessBoard currentBoard, ChessColor myColor)
+        {
+            List<ChessMove> allMoves = GetAllPossibleMoves(ref currentBoard, myColor);
+            ChessMove move = null;
+            ChessBoard tmpBoard = null;
+
+            // remove illegal moves (moves that would put you in check)
+            for (int i = allMoves.Count - 1; i >= 0; i--)
+            {
+                move = allMoves[i];
+                tmpBoard = currentBoard.Clone();
+                tmpBoard.MakeMove(move);
+                if (IsKingInCheck(tmpBoard, myColor))
+                {
+                    allMoves.Remove(move);
+                }
+            }
+
+            return allMoves;
+        }
+
+        /// <summary>
+        /// This function discovers all possible moves for the piece at the specified location and adds the moves to the list
+        /// <summary>
+        /// <param name="currentBoard">The current board state
+        /// <param name="myColor">The color of the player whos moving
         /// <returns>A list of all possible moves</returns>
         private List<ChessMove> GetAllPossibleMoves(ref ChessBoard currentBoard, ChessColor myColor)
         {
@@ -544,6 +580,7 @@ namespace StudentAI
         ///
         private void AddAllPossibleMovesPawn(ref List<ChessMove> allMoves, ref ChessBoard currentBoard, ChessColor myColor, int x, int y)
 		{
+            ChessLocation from = new ChessLocation(x, y);
             int newX;
             int newY;
             //DecisionTree dt = new DecisionTree(currentBoard);                     //come back to this and setup decision tree!!
@@ -558,22 +595,22 @@ namespace StudentAI
                     if (newX < ChessBoard.NumberOfColumns && IsOpponentPiece(currentBoard[newX, newY], myColor)) // capture diagonally forward and right
                     {
                         //currentBoard.RawBoard
-                        allMoves.Add(new ChessMove(new ChessLocation(x, y), new ChessLocation(newX, newY)));
+                        allMoves.Add(new ChessMove(from, new ChessLocation(newX, newY)));
                     }
                     newX = x - 1;
                     if (newX >= 0 && IsOpponentPiece(currentBoard[newX, newY], myColor)) // capture diagonally forward and left
                     {
-                        allMoves.Add(new ChessMove(new ChessLocation(x, y), new ChessLocation(newX, newY)));
+                        allMoves.Add(new ChessMove(from, new ChessLocation(newX, newY)));
                     }
                 }
                 if ((newY < ChessBoard.NumberOfRows) && currentBoard[x, newY] == ChessPiece.Empty) // forward 1
                 {
-                    allMoves.Add(new ChessMove(new ChessLocation(x, y), new ChessLocation(x, newY)));
+                    allMoves.Add(new ChessMove(from, new ChessLocation(x, newY)));
                     newY = y + 2;
 
                     if (newY < ChessBoard.NumberOfRows && currentBoard[x, newY] == ChessPiece.Empty && y == 1) // forward 2
                     {
-                        allMoves.Add(new ChessMove(new ChessLocation(x, y), new ChessLocation(x, newY)));
+                        allMoves.Add(new ChessMove(from, new ChessLocation(x, newY)));
                     }
                 }
             }
@@ -585,21 +622,21 @@ namespace StudentAI
                     newX = x + 1;
                     if (newX < ChessBoard.NumberOfColumns && IsOpponentPiece(currentBoard[newX, newY], myColor)) // capture diagonally forward and right
                     {
-                        allMoves.Add(new ChessMove(new ChessLocation(x, y), new ChessLocation(newX, newY)));
+                        allMoves.Add(new ChessMove(from, new ChessLocation(newX, newY)));
                     }
                     newX = x - 1;
                     if (newX >= 0 && IsOpponentPiece(currentBoard[newX, newY], myColor)) // capture diagonally forward and left
                     {
-                        allMoves.Add(new ChessMove(new ChessLocation(x, y), new ChessLocation(newX, newY)));
+                        allMoves.Add(new ChessMove(from, new ChessLocation(newX, newY)));
                     }
                 }
                 if ((newY >= 0) && currentBoard[x, newY] == ChessPiece.Empty) // forward 1
                 {
-                    allMoves.Add(new ChessMove(new ChessLocation(x, y), new ChessLocation(x, newY)));
+                    allMoves.Add(new ChessMove(from, new ChessLocation(x, newY)));
                     newY = y - 2;
                     if (newY >= 0 && currentBoard[x, newY] == ChessPiece.Empty && y == 6) // forward 2
                     {
-                        allMoves.Add(new ChessMove(new ChessLocation(x, y), new ChessLocation(x, newY)));
+                        allMoves.Add(new ChessMove(from, new ChessLocation(x, newY)));
                     }
                 }
             }
@@ -661,6 +698,7 @@ namespace StudentAI
         ///
         private void AddAllPossibleMovesKnight(ref List<ChessMove> allMoves, ref ChessBoard currentBoard, ChessColor myColor, int x, int y)
         {
+            ChessLocation from = new ChessLocation(x, y);
             int newX;
             int newY;
 
@@ -674,14 +712,14 @@ namespace StudentAI
                     newX = x + 2;
                     if (newX < ChessBoard.NumberOfColumns && (currentBoard[newX, newY] == ChessPiece.Empty || IsOpponentPiece(currentBoard[newX, newY], myColor)))
                     {
-                        allMoves.Add(new ChessMove(new ChessLocation(x, y), new ChessLocation(newX, newY)));
+                        allMoves.Add(new ChessMove(from, new ChessLocation(newX, newY)));
                     }
 
                     // look forward 1 and left 2
                     newX = x - 2;
                     if (newX >= 0 && (currentBoard[newX, newY] == ChessPiece.Empty || IsOpponentPiece(currentBoard[newX, newY], myColor)))
                     {
-                        allMoves.Add(new ChessMove(new ChessLocation(x, y), new ChessLocation(newX, newY)));
+                        allMoves.Add(new ChessMove(from, new ChessLocation(newX, newY)));
                     }
                 }
                 newY = y + 2; // forward 2
@@ -691,14 +729,14 @@ namespace StudentAI
                     newX = x + 1;
                     if (newX < ChessBoard.NumberOfColumns && (currentBoard[newX, newY] == ChessPiece.Empty || IsOpponentPiece(currentBoard[newX, newY], myColor)))
                     {
-                        allMoves.Add(new ChessMove(new ChessLocation(x, y), new ChessLocation(newX, newY)));
+                        allMoves.Add(new ChessMove(from, new ChessLocation(newX, newY)));
                     }
 
                     // look forward 2 and left 1
                     newX = x - 1;
                     if (newX >= 0 && (currentBoard[newX, newY] == ChessPiece.Empty || IsOpponentPiece(currentBoard[newX, newY], myColor)))
                     {
-                        allMoves.Add(new ChessMove(new ChessLocation(x, y), new ChessLocation(newX, newY)));
+                        allMoves.Add(new ChessMove(from, new ChessLocation(newX, newY)));
                     }
                 }
 
@@ -710,14 +748,14 @@ namespace StudentAI
                     newX = x + 2;
                     if (newX < ChessBoard.NumberOfColumns && (currentBoard[newX, newY] == ChessPiece.Empty || IsOpponentPiece(currentBoard[newX, newY], myColor)))
                     {
-                        allMoves.Add(new ChessMove(new ChessLocation(x, y), new ChessLocation(newX, newY)));
+                        allMoves.Add(new ChessMove(from, new ChessLocation(newX, newY)));
                     }
 
                     // look backward 1 and left 2
                     newX = x - 2;
                     if (newX >= 0 && (currentBoard[newX, newY] == ChessPiece.Empty || IsOpponentPiece(currentBoard[newX, newY], myColor)))
                     {
-                        allMoves.Add(new ChessMove(new ChessLocation(x, y), new ChessLocation(newX, newY)));
+                        allMoves.Add(new ChessMove(from, new ChessLocation(newX, newY)));
                     }
                 }
                 newY = y - 2; // backward 2
@@ -727,14 +765,14 @@ namespace StudentAI
                     newX = x + 1;
                     if (newX < ChessBoard.NumberOfColumns && (currentBoard[newX, newY] == ChessPiece.Empty || IsOpponentPiece(currentBoard[newX, newY], myColor)))
                     {
-                        allMoves.Add(new ChessMove(new ChessLocation(x, y), new ChessLocation(newX, newY)));
+                        allMoves.Add(new ChessMove(from, new ChessLocation(newX, newY)));
                     }
 
                     // look backward 2 and left 1
                     newX = x - 1;
                     if (newX >= 0 && (currentBoard[newX, newY] == ChessPiece.Empty || IsOpponentPiece(currentBoard[newX, newY], myColor)))
                     {
-                        allMoves.Add(new ChessMove(new ChessLocation(x, y), new ChessLocation(newX, newY)));
+                        allMoves.Add(new ChessMove(from, new ChessLocation(newX, newY)));
                     }
                 }
             }
@@ -748,14 +786,14 @@ namespace StudentAI
                     newX = x + 2;
                     if (newX < ChessBoard.NumberOfColumns && (currentBoard[newX, newY] == ChessPiece.Empty || IsOpponentPiece(currentBoard[newX, newY], myColor)))
                     {
-                        allMoves.Add(new ChessMove(new ChessLocation(x, y), new ChessLocation(newX, newY)));
+                        allMoves.Add(new ChessMove(from, new ChessLocation(newX, newY)));
                     }
 
                     // look forward 1 and left 2
                     newX = x - 2;
                     if (newX >= 0 && (currentBoard[newX, newY] == ChessPiece.Empty || IsOpponentPiece(currentBoard[newX, newY], myColor)))
                     {
-                        allMoves.Add(new ChessMove(new ChessLocation(x, y), new ChessLocation(newX, newY)));
+                        allMoves.Add(new ChessMove(from, new ChessLocation(newX, newY)));
                     }
                 }
                 newY = y - 2; // forward 2
@@ -765,14 +803,14 @@ namespace StudentAI
                     newX = x + 1;
                     if (newX < ChessBoard.NumberOfColumns && (currentBoard[newX, newY] == ChessPiece.Empty || IsOpponentPiece(currentBoard[newX, newY], myColor)))
                     {
-                        allMoves.Add(new ChessMove(new ChessLocation(x, y), new ChessLocation(newX, newY)));
+                        allMoves.Add(new ChessMove(from, new ChessLocation(newX, newY)));
                     }
 
                     // look forward 2 and left 1
                     newX = x - 1;
                     if (newX >= 0 && (currentBoard[newX, newY] == ChessPiece.Empty || IsOpponentPiece(currentBoard[newX, newY], myColor)))
                     {
-                        allMoves.Add(new ChessMove(new ChessLocation(x, y), new ChessLocation(newX, newY)));
+                        allMoves.Add(new ChessMove(from, new ChessLocation(newX, newY)));
                     }
                 }
 
@@ -784,14 +822,14 @@ namespace StudentAI
                     newX = x + 2;
                     if (newX < ChessBoard.NumberOfColumns && (currentBoard[newX, newY] == ChessPiece.Empty || IsOpponentPiece(currentBoard[newX, newY], myColor)))
                     {
-                        allMoves.Add(new ChessMove(new ChessLocation(x, y), new ChessLocation(newX, newY)));
+                        allMoves.Add(new ChessMove(from, new ChessLocation(newX, newY)));
                     }
 
                     // look backward 1 and left 2
                     newX = x - 2;
                     if (newX >= 0 && (currentBoard[newX, newY] == ChessPiece.Empty || IsOpponentPiece(currentBoard[newX, newY], myColor)))
                     {
-                        allMoves.Add(new ChessMove(new ChessLocation(x, y), new ChessLocation(newX, newY)));
+                        allMoves.Add(new ChessMove(from, new ChessLocation(newX, newY)));
                     }
                 }
                 newY = y + 2; // backward 2
@@ -801,14 +839,14 @@ namespace StudentAI
                     newX = x + 1;
                     if (newX < ChessBoard.NumberOfColumns && (currentBoard[newX, newY] == ChessPiece.Empty || IsOpponentPiece(currentBoard[newX, newY], myColor)))
                     {
-                        allMoves.Add(new ChessMove(new ChessLocation(x, y), new ChessLocation(newX, newY)));
+                        allMoves.Add(new ChessMove(from, new ChessLocation(newX, newY)));
                     }
 
                     // look backward 2 and left 1
                     newX = x - 1;
                     if (newX >= 0 && (currentBoard[newX, newY] == ChessPiece.Empty || IsOpponentPiece(currentBoard[newX, newY], myColor)))
                     {
-                        allMoves.Add(new ChessMove(new ChessLocation(x, y), new ChessLocation(newX, newY)));
+                        allMoves.Add(new ChessMove(from, new ChessLocation(newX, newY)));
                     }
                 }
             }
@@ -825,6 +863,7 @@ namespace StudentAI
         ///
         private void AddAllPossibleMovesKing(ref List<ChessMove> allMoves, ref ChessBoard currentBoard, ChessColor myColor, int x, int y)
         {
+            ChessLocation from = new ChessLocation(x, y);
             int newX = x;
             int newY = y;
 
@@ -835,19 +874,19 @@ namespace StudentAI
                 // look forward 1
                 if (currentBoard[x, newY] == ChessPiece.Empty || IsOpponentPiece(currentBoard[x, newY], myColor))
                 {
-                    allMoves.Add(new ChessMove(new ChessLocation(x, y), new ChessLocation(x, newY)));
+                    allMoves.Add(new ChessMove(from, new ChessLocation(x, newY)));
                 }
                 // look forward 1 and left 1
                 newX = x - 1;
                 if (newX >= 0 && (currentBoard[newX, newY] == ChessPiece.Empty || IsOpponentPiece(currentBoard[newX, newY], myColor)))
                 {
-                    allMoves.Add(new ChessMove(new ChessLocation(x, y), new ChessLocation(newX, newY)));
+                    allMoves.Add(new ChessMove(from, new ChessLocation(newX, newY)));
                 }
                 // look forward 1 and right 1
                 newX = x + 1;
                 if (newX < ChessBoard.NumberOfColumns && (currentBoard[newX, newY] == ChessPiece.Empty || IsOpponentPiece(currentBoard[newX, newY], myColor)))
                 {
-                    allMoves.Add(new ChessMove(new ChessLocation(x, y), new ChessLocation(newX, newY)));
+                    allMoves.Add(new ChessMove(from, new ChessLocation(newX, newY)));
                 }
             }
 
@@ -855,14 +894,14 @@ namespace StudentAI
             newX = x - 1;
             if (newX >= 0 && (currentBoard[newX, y] == ChessPiece.Empty || IsOpponentPiece(currentBoard[newX, y], myColor)))
             {
-                allMoves.Add(new ChessMove(new ChessLocation(x, y), new ChessLocation(newX, y)));
+                allMoves.Add(new ChessMove(from, new ChessLocation(newX, y)));
             }
 
             // looking right
             newX = x + 1;
             if (newX < ChessBoard.NumberOfColumns && (currentBoard[newX, y] == ChessPiece.Empty || IsOpponentPiece(currentBoard[newX, y], myColor)))
             {
-                allMoves.Add(new ChessMove(new ChessLocation(x, y), new ChessLocation(newX, y)));
+                allMoves.Add(new ChessMove(from, new ChessLocation(newX, y)));
             }
 
             // looking backward 1
@@ -872,19 +911,19 @@ namespace StudentAI
                 // look backward 1
                 if (currentBoard[x, newY] == ChessPiece.Empty || IsOpponentPiece(currentBoard[x, newY], myColor))
                 {
-                    allMoves.Add(new ChessMove(new ChessLocation(x, y), new ChessLocation(x, newY)));
+                    allMoves.Add(new ChessMove(from, new ChessLocation(x, newY)));
                 }
                 // look backward 1 and left 1
                 newX = x - 1;
                 if (newX >= 0 && (currentBoard[newX, newY] == ChessPiece.Empty || IsOpponentPiece(currentBoard[newX, newY], myColor)))
                 {
-                    allMoves.Add(new ChessMove(new ChessLocation(x, y), new ChessLocation(newX, newY)));
+                    allMoves.Add(new ChessMove(from, new ChessLocation(newX, newY)));
                 }
                 // look backward 1 and right 1
                 newX = x + 1;
                 if (newX < ChessBoard.NumberOfColumns && (currentBoard[newX, newY] == ChessPiece.Empty || IsOpponentPiece(currentBoard[newX, newY], myColor)))
                 {
-                    allMoves.Add(new ChessMove(new ChessLocation(x, y), new ChessLocation(newX, newY)));
+                    allMoves.Add(new ChessMove(from, new ChessLocation(newX, newY)));
                 }
             }
         }
@@ -900,6 +939,7 @@ namespace StudentAI
         ///
         private void AddAllPossibleMovesDiagonal(ref List<ChessMove> allMoves, ref ChessBoard currentBoard, ChessColor myColor, int x, int y)
 		{
+            ChessLocation from = new ChessLocation(x, y);
 			int newX, newY;
 
 			// lookup up & left
@@ -908,13 +948,13 @@ namespace StudentAI
 			{
 				if ( currentBoard[newX, newY] == ChessPiece.Empty )
 				{
-                    allMoves.Add ( new ChessMove ( new ChessLocation ( x, y ), new ChessLocation ( newX, newY ) ) );
+                    allMoves.Add(new ChessMove(from, new ChessLocation(newX, newY)));
                 }
                 else
                 {
                     if (IsOpponentPiece(currentBoard[newX, newY], myColor))
                     {
-                        allMoves.Add(new ChessMove(new ChessLocation(x, y), new ChessLocation(newX, newY)));
+                        allMoves.Add(new ChessMove(from, new ChessLocation(newX, newY)));
                     }
                     break;
 				}
@@ -926,13 +966,13 @@ namespace StudentAI
 			{
                 if (currentBoard[newX, newY] == ChessPiece.Empty)
                 {
-                    allMoves.Add(new ChessMove(new ChessLocation(x, y), new ChessLocation(newX, newY)));
+                    allMoves.Add(new ChessMove(from, new ChessLocation(newX, newY)));
                 }
                 else
 				{
                     if (IsOpponentPiece(currentBoard[newX, newY], myColor))
                     {
-                        allMoves.Add(new ChessMove(new ChessLocation(x, y), new ChessLocation(newX, newY)));
+                        allMoves.Add(new ChessMove(from, new ChessLocation(newX, newY)));
                     }
 					break;
 				}
@@ -944,13 +984,13 @@ namespace StudentAI
 			{
 				if (currentBoard[newX, newY] == ChessPiece.Empty)
                 {
-                    allMoves.Add(new ChessMove(new ChessLocation(x, y), new ChessLocation(newX, newY)));
+                    allMoves.Add(new ChessMove(from, new ChessLocation(newX, newY)));
                 }
                 else
 				{
                     if (IsOpponentPiece(currentBoard[newX, newY], myColor))
                     {
-                        allMoves.Add(new ChessMove(new ChessLocation(x, y), new ChessLocation(newX, newY)));
+                        allMoves.Add(new ChessMove(from, new ChessLocation(newX, newY)));
                     }
 					break;
 				}
@@ -962,13 +1002,13 @@ namespace StudentAI
 			{
                 if (currentBoard[newX, newY] == ChessPiece.Empty)
                 {
-                    allMoves.Add(new ChessMove(new ChessLocation(x, y), new ChessLocation(newX, newY)));
+                    allMoves.Add(new ChessMove(from, new ChessLocation(newX, newY)));
                 }
                 else
 				{
                     if (IsOpponentPiece(currentBoard[newX, newY], myColor))
                     {
-                        allMoves.Add(new ChessMove(new ChessLocation(x, y), new ChessLocation(newX, newY)));
+                        allMoves.Add(new ChessMove(from, new ChessLocation(newX, newY)));
                     }
                     break;
 				}
@@ -986,18 +1026,19 @@ namespace StudentAI
         ///
         private void AddAllPossibleMovesVertical(ref List<ChessMove> allMoves, ref ChessBoard currentBoard, ChessColor myColor, int x, int y)
 		{
+            ChessLocation from = new ChessLocation(x, y);
 			// looking up
 			for ( int newY = y - 1; newY >= 0; newY-- )
 			{
                 if (currentBoard[x, newY] == ChessPiece.Empty)
                 {
-                    allMoves.Add(new ChessMove(new ChessLocation(x, y), new ChessLocation(x, newY)));
+                    allMoves.Add(new ChessMove(from, new ChessLocation(x, newY)));
                 }
                 else
 				{
                     if (IsOpponentPiece(currentBoard[x, newY], myColor))
                     {
-                        allMoves.Add(new ChessMove(new ChessLocation(x, y), new ChessLocation(x, newY)));
+                        allMoves.Add(new ChessMove(from, new ChessLocation(x, newY)));
                     }
 					break;
 				}
@@ -1008,13 +1049,13 @@ namespace StudentAI
 			{
                 if (currentBoard[x, newY] == ChessPiece.Empty)
                 {
-                    allMoves.Add(new ChessMove(new ChessLocation(x, y), new ChessLocation(x, newY)));
+                    allMoves.Add(new ChessMove(from, new ChessLocation(x, newY)));
                 }
                 else
                 {
                     if (IsOpponentPiece(currentBoard[x, newY], myColor))
                     {
-                        allMoves.Add(new ChessMove(new ChessLocation(x, y), new ChessLocation(x, newY)));
+                        allMoves.Add(new ChessMove(from, new ChessLocation(x, newY)));
                     }
                     break;
                 }
@@ -1032,18 +1073,19 @@ namespace StudentAI
         ///
         private void AddAllPossibleMovesHorizontal(ref List<ChessMove> allMoves, ref ChessBoard currentBoard, ChessColor myColor, int x, int y)
 		{
+            ChessLocation from = new ChessLocation(x, y);
 			// looking right
 			for ( int newX = x + 1; newX < ChessBoard.NumberOfColumns; newX++ )
 			{
                 if (currentBoard[newX, y] == ChessPiece.Empty)
                 {
-                    allMoves.Add(new ChessMove(new ChessLocation(x, y), new ChessLocation(newX, y)));
+                    allMoves.Add(new ChessMove(from, new ChessLocation(newX, y)));
                 }
                 else
 				{
                     if (IsOpponentPiece(currentBoard[newX, y], myColor))
                     {
-                        allMoves.Add(new ChessMove(new ChessLocation(x, y), new ChessLocation(newX, y)));
+                        allMoves.Add(new ChessMove(from, new ChessLocation(newX, y)));
                     }
 					break;
 				}
@@ -1054,13 +1096,13 @@ namespace StudentAI
 			{
                 if (currentBoard[newX, y] == ChessPiece.Empty)
                 {
-                    allMoves.Add(new ChessMove(new ChessLocation(x, y), new ChessLocation(newX, y)));
+                    allMoves.Add(new ChessMove(from, new ChessLocation(newX, y)));
                 }
                 else
                 {
                     if (IsOpponentPiece(currentBoard[newX, y], myColor))
                     {
-                        allMoves.Add(new ChessMove(new ChessLocation(x, y), new ChessLocation(newX, y)));
+                        allMoves.Add(new ChessMove(from, new ChessLocation(newX, y)));
                     }
                     break;
                 }
