@@ -8,14 +8,16 @@ namespace StudentAI
 {
     public class StudentAI : IChessAI
     {
+        DecisionTree dt = null;
         ChessMove lastMove = null;
         ChessMove nextLastMove = null;
         int ifSameAs = 0;
         #region IChessAI Members that are implemented by the Student
         
-        public const int MAX_NUM_PLIES = 5;
+        public const int MAX_NUM_PLIES = 4;
         public const int MAX_QUIESCENT_MOVES = 2; // the maximum number of quiescent (non-capture) moves that will be evaluated during quiescent trimming
         public const int QUIESCENT_TRIMMING_PLIES = 0; // when ply = <this value> quiescent trimming will begin, set it to 0 for off
+        public const bool PERFORM_ITERATIVE_DEEPENING = true; // if true then we will start with a depth of MAX_NUM_PLIES and increase by 1 until time runs out (decision tree info will not be valid since the final best move is always from the last completed search not the one that we stopped in the middle of)
 
         /// <summary>
         /// The name of your AI
@@ -118,15 +120,22 @@ namespace StudentAI
         /// <returns> Returns the best chess move the player has for the given chess board</returns>
         public ChessMove GetNextMove(ChessBoard board, ChessColor myColor)
         {
-            
-            //List<ChessMove> allMoves = GetAllMoves(board, myColor);
-            //ChessMove myChosenMove = null;
-            ChessMove bestMove = MiniMaxDecision(board, myColor, MAX_NUM_PLIES);
-            //bestMove.Flag = ChessFlag.Check;
-            //myChosenMove = allMoves[bestMove];
+            ChessMove bestMove = null;
+            ChessMove tmpMove = null;
+            bool bDigDeeper = true;
+            int depth = MAX_NUM_PLIES;
 
-           // SetDecisionTree(allMoves, bestMove, board.Clone(), myColor);
-  
+            do
+            {
+                tmpMove = MiniMaxDecision(board, myColor, depth);
+                bDigDeeper = !( IsMyTurnOver() );
+                if (bDigDeeper) // don't store the best move of the iteration that was interrupted, it's incomplete
+                {
+                    bestMove = tmpMove;
+                    depth++;
+                }
+            } while (bDigDeeper && PERFORM_ITERATIVE_DEEPENING);
+
             return bestMove;
         }
 
@@ -333,8 +342,14 @@ namespace StudentAI
             ChessMove bestMove = null;
             int value;
 
+#if DEBUG
+            // Tell UvsChess about the decision tree object
+            dt = new DecisionTree(boardBeforeMove);
+            SetDecisionTree(dt);
+#endif
+
             // peek ahead through all possible moves and find the best one
-            value = MaxValue(boardBeforeMove, myColor, Int32.MinValue, Int32.MaxValue, ref bestMove, nPlies);
+            value = MaxValue(boardBeforeMove, myColor, Int32.MinValue, Int32.MaxValue, ref bestMove, ref dt, nPlies);
             if (bestMove == null)
             {
                 bestMove = new ChessMove(null, null);
@@ -344,6 +359,9 @@ namespace StudentAI
             finalBoard = boardBeforeMove.Clone();
             finalBoard.MakeMove(bestMove);
 
+#if DEBUG
+            dt.BestChildMove = bestMove;
+#endif
             // see if they are in check / checkmate / stalemate
             List<ChessMove> allPossibleMoves2 = GetAllLegalMoves(ref finalBoard, opponentColor);
             if (IsKingInCheck(finalBoard, opponentColor))
@@ -371,7 +389,7 @@ namespace StudentAI
         /// <param name="myColor"></param>The color of my (the opponent) pieces
         /// <param name="nPlies"></param>The number of plies remaining to look ahead
         /// <returns>The utility value of this branch</returns>
-        private int MinValue(ChessBoard boardBeforeMove, ChessColor myColor, int alpha, int beta, ref ChessMove chosenMove, int nPlies)
+        private int MinValue(ChessBoard boardBeforeMove, ChessColor myColor, int alpha, int beta, ref ChessMove chosenMove, ref DecisionTree dt, int nPlies)
         {
             List<ChessMove> allCaptureMoves = new List<ChessMove>();
             List<ChessMove> allPossibleMoves = GetAllPossibleMoves(ref boardBeforeMove, ref allCaptureMoves, myColor);
@@ -380,6 +398,9 @@ namespace StudentAI
             int bestValue = Int32.MaxValue;
             int value;
             ChessMove valueMove = null;
+
+            if (IsMyTurnOver())
+                return 0;
 
             // assign utility value if we're at the leaf node, this
             // value will bubble up with each branch choosing what
@@ -397,91 +418,38 @@ namespace StudentAI
             {
                 tempBoard = boardBeforeMove.Clone();
                 tempBoard.MakeMove(move);
-                value = MaxValue(tempBoard, opponentColor, alpha, beta, ref valueMove, nPlies - 1);
+#if DEBUG
+                dt.AddChild(tempBoard, move);
+                dt = dt.LastChild;
+#endif
+                value = MaxValue(tempBoard, opponentColor, alpha, beta, ref valueMove, ref dt, nPlies - 1);
+#if DEBUG
+                dt.EventualMoveValue = Convert.ToString(value);
+                dt = dt.Parent;
+#endif
                 if (value < bestValue)
+                {
                     bestValue = value;
+                    chosenMove = move;
+                }
                 if (bestValue <= alpha)
                 {
                     chosenMove = null;
+#if DEBUG
+                    dt.BestChildMove = move;
+                    dt.EventualMoveValue = Convert.ToString(bestValue);
+#endif
                     return bestValue; // bail, max will never choose this value
                 }
                 if (bestValue < beta)
                 {
                     beta = bestValue;
-                    chosenMove = move;
-                }
-            }
-            foreach (ChessMove move in allPossibleMoves)
-            {
-                tempBoard = boardBeforeMove.Clone();
-                tempBoard.MakeMove(move);
-                value = MaxValue(tempBoard, opponentColor, alpha, beta, ref valueMove, nPlies - 1);
-                if (value < bestValue)
-                    bestValue = value;
-                if (bestValue <= alpha)
-                {
-                    chosenMove = null;
-                    return bestValue; // bail, max will never choose this value
-                }
-                if (bestValue < beta)
-                {
-                    beta = bestValue;
-                    chosenMove = move;
                 }
             }
 
-            return bestValue;
-        }
-
-        /// <summary>
-        /// This mutually recursive function tries to find the best move for me
-        /// </summary>
-        /// <param name="boardBeforeMove"></param>The board before we move
-        /// <param name="myColor"></param>The color of my pieces
-        /// <param name="nPlies"></param>The number of plies remaining to look ahead
-        /// <returns>The utility value of this branch</returns>
-        public int MaxValue(ChessBoard boardBeforeMove, ChessColor myColor, int alpha, int beta, ref ChessMove chosenMove, int nPlies)
-        {
-            List<ChessMove> allCaptureMoves = new List<ChessMove>();
-            List<ChessMove> allPossibleMoves = GetAllPossibleMoves(ref boardBeforeMove, ref allCaptureMoves, myColor);
-            ChessBoard tempBoard = null;
-            ChessColor opponentColor = (myColor == ChessColor.Black) ? ChessColor.White : ChessColor.Black;
-            int bestValue = Int32.MinValue;
-            int value;
-            ChessMove valueMove = null;
-
-            // assign utility value if we're at the leaf node, this
-            // value will bubble up with each branch choosing what
-            // it considers to be the "best" value as it's value.
-            if (nPlies == 0 || TerminalTest(boardBeforeMove))
-            {
-                return Utility(boardBeforeMove, myColor, allPossibleMoves.Count);
-            }
-
-            // peek ahead through all possible moves and find the best one
-            // we're using move ordering to improve alpha beta pruning so
-            // that's why we have to loop multiple times
-            foreach (ChessMove move in allCaptureMoves)
-            {
-                tempBoard = boardBeforeMove.Clone();
-                tempBoard.MakeMove(move);
-                value = MinValue(tempBoard, opponentColor, alpha, beta, ref valueMove, nPlies - 1);
-                if (value > bestValue)
-                    bestValue = value;
-                if (bestValue >= beta)
-                {
-                    chosenMove = null;
-                    return bestValue; // bail, min will never choose this value
-                }
-                if (bestValue > alpha)
-                {
-                    alpha = bestValue;
-                    chosenMove = move;
-                }
-            }
 
             // Quiescent trimming (remove all but the best quiescent moves *the effectiveness of this depends highly on our heuristic for non-capture moves*)
-            if (nPlies <= QUIESCENT_TRIMMING_PLIES && allCaptureMoves.Count != 0)
+            if (nPlies <= QUIESCENT_TRIMMING_PLIES)
             {
                 List<EvaluatedMove> bestQuiescentMoves = new List<EvaluatedMove>();
                 int nBest = MAX_QUIESCENT_MOVES - allCaptureMoves.Count;
@@ -492,19 +460,19 @@ namespace StudentAI
                 {
                     tempBoard = boardBeforeMove.Clone();
                     tempBoard.MakeMove(move);
-                    score = Utility(tempBoard, myColor, 0);
+                    score = Utility(tempBoard, opponentColor, 0);
                     if (bestQuiescentMoves.Count < nBest)
                     {
                         bestQuiescentMoves.Add(new EvaluatedMove(move, score));
+                        bestQuiescentMoves.Sort(delegate(EvaluatedMove m1, EvaluatedMove m2) { return m1.score.CompareTo(m2.score); });
                     }
                     else
                     {
-                        for (int i = 0; i < bestQuiescentMoves.Count; i++)
+                        if (score > bestQuiescentMoves[0].score)
                         {
-                            if (score > bestQuiescentMoves[i].score)
-                            {
-                                bestQuiescentMoves[i] = new EvaluatedMove(move, score);
-                            }
+                            bestQuiescentMoves[0].move = move;
+                            bestQuiescentMoves[0].score = score;
+                            bestQuiescentMoves.Sort(delegate(EvaluatedMove m1, EvaluatedMove m2) { return m1.score.CompareTo(m2.score); });
                         }
                     }
                 }
@@ -522,21 +490,177 @@ namespace StudentAI
             {
                 tempBoard = boardBeforeMove.Clone();
                 tempBoard.MakeMove(move);
-                value = MinValue(tempBoard, opponentColor, alpha, beta, ref valueMove, nPlies - 1);
-                if (value > bestValue)
+#if DEBUG
+                dt.AddChild(tempBoard, move);
+                dt = dt.LastChild;
+#endif
+                value = MaxValue(tempBoard, opponentColor, alpha, beta, ref valueMove, ref dt, nPlies - 1);
+#if DEBUG
+                dt.EventualMoveValue = Convert.ToString(value);
+                dt = dt.Parent;
+#endif
+                if (value < bestValue)
+                {
                     bestValue = value;
+                    chosenMove = move;
+                }
+                if (bestValue <= alpha)
+                {
+                    chosenMove = null;
+#if DEBUG
+                    dt.BestChildMove = move;
+                    dt.EventualMoveValue = Convert.ToString(bestValue);
+#endif
+                    return bestValue; // bail, max will never choose this value
+                }
+                if (bestValue < beta)
+                {
+                    beta = bestValue;
+                }
+            }
+#if DEBUG
+            dt.BestChildMove = chosenMove;
+#endif
+            return bestValue;
+        }
+
+        /// <summary>
+        /// This mutually recursive function tries to find the best move for me
+        /// </summary>
+        /// <param name="boardBeforeMove"></param>The board before we move
+        /// <param name="myColor"></param>The color of my pieces
+        /// <param name="nPlies"></param>The number of plies remaining to look ahead
+        /// <returns>The utility value of this branch</returns>
+        public int MaxValue(ChessBoard boardBeforeMove, ChessColor myColor, int alpha, int beta, ref ChessMove chosenMove, ref DecisionTree dt, int nPlies)
+        {
+            List<ChessMove> allCaptureMoves = new List<ChessMove>();
+            List<ChessMove> allPossibleMoves = GetAllPossibleMoves(ref boardBeforeMove, ref allCaptureMoves, myColor);
+            ChessBoard tempBoard = null;
+            ChessColor opponentColor = (myColor == ChessColor.Black) ? ChessColor.White : ChessColor.Black;
+            int bestValue = Int32.MinValue;
+            int value;
+            ChessMove valueMove = null;
+
+            if (IsMyTurnOver())
+                return 0;
+
+            // assign utility value if we're at the leaf node, this
+            // value will bubble up with each branch choosing what
+            // it considers to be the "best" value as it's value.
+            if (nPlies == 0 || TerminalTest(boardBeforeMove))
+            {
+                return Utility(boardBeforeMove, myColor, allPossibleMoves.Count);
+            }
+
+            // peek ahead through all possible moves and find the best one
+            // we're using move ordering to improve alpha beta pruning so
+            // that's why we have to loop multiple times
+            foreach (ChessMove move in allCaptureMoves)
+            {
+                tempBoard = boardBeforeMove.Clone();
+                tempBoard.MakeMove(move);
+#if DEBUG
+                dt.AddChild(tempBoard, move);
+                dt = dt.LastChild;
+#endif
+                value = MinValue(tempBoard, opponentColor, alpha, beta, ref valueMove, ref dt, nPlies - 1);
+#if DEBUG
+                dt.EventualMoveValue = Convert.ToString(value);
+                dt = dt.Parent;
+#endif
+                if (value > bestValue)
+                {
+                    bestValue = value;
+                    chosenMove = move;
+                }
                 if (bestValue >= beta)
                 {
                     chosenMove = null;
+#if DEBUG
+                    dt.BestChildMove = move;
+#endif
                     return bestValue; // bail, min will never choose this value
                 }
                 if (bestValue > alpha)
                 {
                     alpha = bestValue;
-                    chosenMove = move;
                 }
             }
 
+            // Quiescent trimming (remove all but the best quiescent moves *the effectiveness of this depends highly on our heuristic for non-capture moves*)
+            if (nPlies <= QUIESCENT_TRIMMING_PLIES)
+            {
+                List<EvaluatedMove> bestQuiescentMoves = new List<EvaluatedMove>();
+                int nBest = MAX_QUIESCENT_MOVES - allCaptureMoves.Count;
+                int score;
+
+                // find the best quiescent moves
+                foreach (ChessMove move in allPossibleMoves)
+                {
+                    tempBoard = boardBeforeMove.Clone();
+                    tempBoard.MakeMove(move);
+                    score = Utility(tempBoard, myColor, 0);
+                    if (bestQuiescentMoves.Count < nBest)
+                    {
+                        bestQuiescentMoves.Add(new EvaluatedMove(move, score));
+                        bestQuiescentMoves.Sort(delegate(EvaluatedMove m1, EvaluatedMove m2) { return m1.score.CompareTo(m2.score); });
+                    }
+                    else
+                    {
+                        if (score > bestQuiescentMoves[0].score)
+                        {
+                            bestQuiescentMoves[0].move = move;
+                            bestQuiescentMoves[0].score = score;
+                            bestQuiescentMoves.Sort(delegate(EvaluatedMove m1, EvaluatedMove m2) { return m1.score.CompareTo(m2.score); });
+                        }
+                    }
+                }
+
+                // replace allPossibleMoves with the quiescent moves
+                allPossibleMoves.Clear();
+                foreach (EvaluatedMove em in bestQuiescentMoves)
+                {
+                    allPossibleMoves.Add(em.move);
+                }
+            }
+
+            // search quiescent moves
+            foreach (ChessMove move in allPossibleMoves)
+            {
+                tempBoard = boardBeforeMove.Clone();
+                tempBoard.MakeMove(move);
+#if DEBUG
+                dt.AddChild(tempBoard, move);
+                dt = dt.LastChild;
+#endif
+                value = MinValue(tempBoard, opponentColor, alpha, beta, ref valueMove, ref dt, nPlies - 1);
+#if DEBUG
+                dt.EventualMoveValue = Convert.ToString(value);
+                dt = dt.Parent;
+#endif
+                if (value > bestValue)
+                {
+                    bestValue = value;
+                    chosenMove = move;
+                }
+                if (bestValue >= beta)
+                {
+                    chosenMove = null;
+#if DEBUG
+                    dt.BestChildMove = move;
+                    dt.EventualMoveValue = Convert.ToString(bestValue);
+#endif
+                    return bestValue; // bail, min will never choose this value
+                }
+                if (bestValue > alpha)
+                {
+                    alpha = bestValue;
+                }
+            }
+
+#if DEBUG
+            dt.BestChildMove = chosenMove;
+#endif
             return bestValue;
         }
 
@@ -603,7 +727,7 @@ namespace StudentAI
             foreach (ChessMove move in allCaptureMoves)
             {
                 piece = board[move.To.X, move.To.Y];
-                if (piece != null)
+                if (piece != ChessPiece.Empty)
                 {
                     allMoves.Clear();
                     switch (piece)
@@ -648,7 +772,7 @@ namespace StudentAI
             foreach (ChessMove move in allCaptureMoves)
             {
                 piece = board[move.To.X, move.To.Y];
-                if (piece != null)
+                if (piece != ChessPiece.Empty)
                 {
                     allMoves.Clear();
                     switch (piece)
