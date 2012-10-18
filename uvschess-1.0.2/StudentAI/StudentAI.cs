@@ -14,6 +14,8 @@ namespace StudentAI
         #region IChessAI Members that are implemented by the Student
         
         public const int MAX_NUM_PLIES = 5;
+        public const int MAX_QUIESCENT_MOVES = 2; // the maximum number of quiescent (non-capture) moves that will be evaluated during quiescent trimming
+        public const int QUIESCENT_TRIMMING_PLIES = 0; // when ply = <this value> quiescent trimming will begin, set it to 0 for off
 
         /// <summary>
         /// The name of your AI
@@ -259,7 +261,7 @@ namespace StudentAI
                             if (board[i, j] != ChessPiece.Empty)
                             {
                                 piece = board[i, j];
-                                if (piece == ChessPiece.BlackBishop || piece == ChessPiece.BlackBishop)
+                                if (piece == ChessPiece.BlackBishop || piece == ChessPiece.BlackKnight)
                                     score = score + 3000;
                                 else if (piece == ChessPiece.BlackPawn)
                                     score = score + 1000;
@@ -269,7 +271,7 @@ namespace StudentAI
                                     score = score + 9000;
                                 else if (piece == ChessPiece.BlackKing)
                                     score = score + 900000;
-                                else if (piece == ChessPiece.WhiteBishop || piece == ChessPiece.WhiteBishop)
+                                else if (piece == ChessPiece.WhiteBishop || piece == ChessPiece.WhiteKnight)
                                     score = score - 3000;
                                 else if (piece == ChessPiece.WhitePawn)
                                     score = score - 1000;
@@ -282,9 +284,9 @@ namespace StudentAI
                             }
                 }
 
-               Random random = new Random();
+               Random random = new Random((int)(System.DateTime.Now.Ticks / System.TimeSpan.TicksPerMinute));
                if (score == 0 || ifSameAs == score)
-                  score = random.Next(0, 1000);
+                  score = random.Next(0, 500);
                ifSameAs = score;                                             
                return score;
             }
@@ -477,6 +479,45 @@ namespace StudentAI
                     chosenMove = move;
                 }
             }
+
+            // Quiescent trimming (remove all but the best quiescent moves *the effectiveness of this depends highly on our heuristic for non-capture moves*)
+            if (nPlies <= QUIESCENT_TRIMMING_PLIES && allCaptureMoves.Count != 0)
+            {
+                List<EvaluatedMove> bestQuiescentMoves = new List<EvaluatedMove>();
+                int nBest = MAX_QUIESCENT_MOVES - allCaptureMoves.Count;
+                int score;
+
+                // find the best quiescent moves
+                foreach (ChessMove move in allPossibleMoves)
+                {
+                    tempBoard = boardBeforeMove.Clone();
+                    tempBoard.MakeMove(move);
+                    score = Utility(tempBoard, myColor, 0);
+                    if (bestQuiescentMoves.Count < nBest)
+                    {
+                        bestQuiescentMoves.Add(new EvaluatedMove(move, score));
+                    }
+                    else
+                    {
+                        for (int i = 0; i < bestQuiescentMoves.Count; i++)
+                        {
+                            if (score > bestQuiescentMoves[i].score)
+                            {
+                                bestQuiescentMoves[i] = new EvaluatedMove(move, score);
+                            }
+                        }
+                    }
+                }
+
+                // replace allPossibleMoves with the quiescent moves
+                allPossibleMoves.Clear();
+                foreach (EvaluatedMove em in bestQuiescentMoves)
+                {
+                    allPossibleMoves.Add(em.move);
+                }
+            }
+
+            // search quiescent moves
             foreach (ChessMove move in allPossibleMoves)
             {
                 tempBoard = boardBeforeMove.Clone();
@@ -1450,5 +1491,22 @@ namespace StudentAI
         /// <param name="message"></param>
         public AISetDecisionTreeCallback SetDecisionTree { get; set; }
         #endregion
+    }
+
+    public class EvaluatedMove
+    {
+        public ChessMove move;
+        public int score;
+
+        /// <summary>
+        /// Construct an evaluated move
+        /// </summary>
+        /// <param name="m">The move that has been evaluated</param>
+        /// <param name="s">The score associated with the move</param>
+        public EvaluatedMove(ChessMove m, int s)
+        {
+            move = m;
+            score = s;
+        }
     }
 }
