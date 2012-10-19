@@ -9,6 +9,7 @@ namespace StudentAI
     public class StudentAI : IChessAI
     {
         DecisionTree dt = null;
+        Random random = null;
         ChessMove lastMove = null;
         ChessMove nextLastMove = null;
         int ifSameAs = 0;
@@ -17,7 +18,7 @@ namespace StudentAI
         public const int MAX_NUM_PLIES = 4;
         public const int MAX_QUIESCENT_MOVES = 2; // the maximum number of quiescent (non-capture) moves that will be evaluated during quiescent trimming
         public const int QUIESCENT_TRIMMING_PLIES = 0; // when ply = <this value> quiescent trimming will begin, set it to 0 for off
-        public const bool PERFORM_ITERATIVE_DEEPENING = true; // if true then we will start with a depth of MAX_NUM_PLIES and increase by 1 until time runs out (decision tree info will not be valid since the final best move is always from the last completed search not the one that we stopped in the middle of)
+        public const bool PERFORM_ITERATIVE_DEEPENING = true; // if true then we will start with a depth of MAX_NUM_PLIES and increase by 1 each time through the loop until time runs out (decision tree info will not be valid since the final best move is always from the last completed search not the one that we stopped in the middle of)
 
         /// <summary>
         /// The name of your AI
@@ -32,7 +33,7 @@ namespace StudentAI
 #endif
         }
 
-        private void logBoard(ChessBoard board, ChessColor myColor, ChessMove move)
+        private void logBoard(ChessBoard board, ChessColor myColor, ChessMove move, int score, int depth)
         {
 #if FALSE
             FileStream fs = null;
@@ -46,7 +47,7 @@ namespace StudentAI
                 fs = new FileStream("C:/Users/bryant/Desktop/WhiteBoard.txt", FileMode.Append, FileAccess.Write);
             writer = new StreamWriter(fs);
             writer.WriteLine("==============================================");
-            writer.WriteLine("");
+            writer.WriteLine("depth: {0}", depth);
             for (i = 0; i < ChessBoard.NumberOfRows; i++)
             {
                 writer.WriteLine("");
@@ -125,6 +126,9 @@ namespace StudentAI
             bool bDigDeeper = true;
             int depth = MAX_NUM_PLIES;
 
+            if ( random == null )
+                random = new Random();
+
             do
             {
                 tmpMove = MiniMaxDecision(board, myColor, depth);
@@ -135,6 +139,10 @@ namespace StudentAI
                     depth++;
                 }
             } while (bDigDeeper && PERFORM_ITERATIVE_DEEPENING);
+            if ( PERFORM_ITERATIVE_DEEPENING )
+                this.Log("Depth reached = " + Convert.ToString(depth - 1)); // subtract 1 since the last iteration didn't complete
+            else
+                this.Log("Depth reached = " + Convert.ToString(depth));
 
             return bestMove;
         }
@@ -242,25 +250,25 @@ namespace StudentAI
                             {
                                 piece = board[i, j];
                                 if (piece == ChessPiece.BlackBishop || piece == ChessPiece.BlackKnight)
-                                    score = score - 3000;
+                                    score = score - 30000;
                                 else if (piece == ChessPiece.BlackPawn)
-                                    score = score - 1000;
+                                    score = score - 10000;
                                 else if (piece == ChessPiece.BlackRook)
-                                    score = score - 5000;
+                                    score = score - 50000;
                                 else if (piece == ChessPiece.BlackQueen)
-                                    score = score - 9000;
+                                    score = score - 90000;
                                 else if (piece == ChessPiece.BlackKing)
-                                    score = score - 900000;
+                                    score = score - 9000000;
                                 else if (piece == ChessPiece.WhiteBishop || piece == ChessPiece.WhiteKnight)
-                                    score = score + 3000;
+                                    score = score + 30000;
                                 else if (piece == ChessPiece.WhitePawn)
-                                    score = score + 1000;
+                                    score = score + 10000;
                                 else if (piece == ChessPiece.WhiteRook)
-                                    score = score + 5000;
+                                    score = score + 50000;
                                 else if (piece == ChessPiece.WhiteQueen)
-                                    score = score + 9000;
+                                    score = score + 90000;
                                 else if (piece == ChessPiece.WhiteKing)
-                                    score = score + 900000;
+                                    score = score + 9000000;
                             }
                 }
                 else if (myColor == ChessColor.Black)
@@ -271,31 +279,32 @@ namespace StudentAI
                             {
                                 piece = board[i, j];
                                 if (piece == ChessPiece.BlackBishop || piece == ChessPiece.BlackKnight)
-                                    score = score + 3000;
+                                    score = score + 30000;
                                 else if (piece == ChessPiece.BlackPawn)
-                                    score = score + 1000;
+                                    score = score + 10000;
                                 else if (piece == ChessPiece.BlackRook)
-                                    score = score + 5000;
+                                    score = score + 50000;
                                 else if (piece == ChessPiece.BlackQueen)
-                                    score = score + 9000;
+                                    score = score + 90000;
                                 else if (piece == ChessPiece.BlackKing)
-                                    score = score + 900000;
+                                    score = score + 9000000;
                                 else if (piece == ChessPiece.WhiteBishop || piece == ChessPiece.WhiteKnight)
-                                    score = score - 3000;
+                                    score = score - 30000;
                                 else if (piece == ChessPiece.WhitePawn)
-                                    score = score - 1000;
+                                    score = score - 10000;
                                 else if (piece == ChessPiece.WhiteRook)
-                                    score = score - 5000;
+                                    score = score - 50000;
                                 else if (piece == ChessPiece.WhiteQueen)
-                                    score = score - 9000;
+                                    score = score - 90000;
                                 else if (piece == ChessPiece.WhiteKing)
-                                    score = score - 900000;
+                                    score = score - 9000000;
                             }
                 }
 
-               Random random = new Random((int)(System.DateTime.Now.Ticks / System.TimeSpan.TicksPerMinute));
-               if (score == 0 || ifSameAs == score)
-                  score = random.Next(0, 500);
+//               if (score == 0 || ifSameAs == score)
+               {
+                   score += random.Next(0, 1000);
+               }
                ifSameAs = score;                                             
                return score;
             }
@@ -408,7 +417,6 @@ namespace StudentAI
             if (nPlies == 0 || TerminalTest(boardBeforeMove))
             {
                 return Utility(boardBeforeMove, opponentColor, allPossibleMoves.Count);
-                
             }
 
             // peek ahead through all possible moves and find the best one.
@@ -434,7 +442,7 @@ namespace StudentAI
                 }
                 if (bestValue <= alpha)
                 {
-                    chosenMove = null;
+                    chosenMove = move;
 #if DEBUG
                     dt.BestChildMove = move;
                     dt.EventualMoveValue = Convert.ToString(bestValue);
@@ -456,32 +464,35 @@ namespace StudentAI
                 int score;
 
                 // find the best quiescent moves
-                foreach (ChessMove move in allPossibleMoves)
+                if (nBest > 0)
                 {
-                    tempBoard = boardBeforeMove.Clone();
-                    tempBoard.MakeMove(move);
-                    score = Utility(tempBoard, opponentColor, 0);
-                    if (bestQuiescentMoves.Count < nBest)
+                    foreach (ChessMove move in allPossibleMoves)
                     {
-                        bestQuiescentMoves.Add(new EvaluatedMove(move, score));
-                        bestQuiescentMoves.Sort(delegate(EvaluatedMove m1, EvaluatedMove m2) { return m1.score.CompareTo(m2.score); });
-                    }
-                    else
-                    {
-                        if (score > bestQuiescentMoves[0].score)
+                        tempBoard = boardBeforeMove.Clone();
+                        tempBoard.MakeMove(move);
+                        score = Utility(tempBoard, opponentColor, 0);
+                        if (bestQuiescentMoves.Count < nBest)
                         {
-                            bestQuiescentMoves[0].move = move;
-                            bestQuiescentMoves[0].score = score;
+                            bestQuiescentMoves.Add(new EvaluatedMove(move, score));
                             bestQuiescentMoves.Sort(delegate(EvaluatedMove m1, EvaluatedMove m2) { return m1.score.CompareTo(m2.score); });
                         }
+                        else
+                        {
+                            if (score > bestQuiescentMoves[0].score)
+                            {
+                                bestQuiescentMoves[0].move = move;
+                                bestQuiescentMoves[0].score = score;
+                                bestQuiescentMoves.Sort(delegate(EvaluatedMove m1, EvaluatedMove m2) { return m1.score.CompareTo(m2.score); });
+                            }
+                        }
                     }
-                }
 
-                // replace allPossibleMoves with the quiescent moves
-                allPossibleMoves.Clear();
-                foreach (EvaluatedMove em in bestQuiescentMoves)
-                {
-                    allPossibleMoves.Add(em.move);
+                    // replace allPossibleMoves with the quiescent moves
+                    allPossibleMoves.Clear();
+                    foreach (EvaluatedMove em in bestQuiescentMoves)
+                    {
+                        allPossibleMoves.Add(em.move);
+                    }
                 }
             }
 
@@ -506,7 +517,7 @@ namespace StudentAI
                 }
                 if (bestValue <= alpha)
                 {
-                    chosenMove = null;
+                    chosenMove = move;
 #if DEBUG
                     dt.BestChildMove = move;
                     dt.EventualMoveValue = Convert.ToString(bestValue);
@@ -575,7 +586,7 @@ namespace StudentAI
                 }
                 if (bestValue >= beta)
                 {
-                    chosenMove = null;
+                    chosenMove = move;
 #if DEBUG
                     dt.BestChildMove = move;
 #endif
@@ -595,32 +606,35 @@ namespace StudentAI
                 int score;
 
                 // find the best quiescent moves
-                foreach (ChessMove move in allPossibleMoves)
+                if (nBest > 0)
                 {
-                    tempBoard = boardBeforeMove.Clone();
-                    tempBoard.MakeMove(move);
-                    score = Utility(tempBoard, myColor, 0);
-                    if (bestQuiescentMoves.Count < nBest)
+                    foreach (ChessMove move in allPossibleMoves)
                     {
-                        bestQuiescentMoves.Add(new EvaluatedMove(move, score));
-                        bestQuiescentMoves.Sort(delegate(EvaluatedMove m1, EvaluatedMove m2) { return m1.score.CompareTo(m2.score); });
-                    }
-                    else
-                    {
-                        if (score > bestQuiescentMoves[0].score)
+                        tempBoard = boardBeforeMove.Clone();
+                        tempBoard.MakeMove(move);
+                        score = Utility(tempBoard, myColor, 0);
+                        if (bestQuiescentMoves.Count < nBest)
                         {
-                            bestQuiescentMoves[0].move = move;
-                            bestQuiescentMoves[0].score = score;
+                            bestQuiescentMoves.Add(new EvaluatedMove(move, score));
                             bestQuiescentMoves.Sort(delegate(EvaluatedMove m1, EvaluatedMove m2) { return m1.score.CompareTo(m2.score); });
                         }
+                        else
+                        {
+                            if (score > bestQuiescentMoves[0].score)
+                            {
+                                bestQuiescentMoves[0].move = move;
+                                bestQuiescentMoves[0].score = score;
+                                bestQuiescentMoves.Sort(delegate(EvaluatedMove m1, EvaluatedMove m2) { return m1.score.CompareTo(m2.score); });
+                            }
+                        }
                     }
-                }
 
-                // replace allPossibleMoves with the quiescent moves
-                allPossibleMoves.Clear();
-                foreach (EvaluatedMove em in bestQuiescentMoves)
-                {
-                    allPossibleMoves.Add(em.move);
+                    // replace allPossibleMoves with the quiescent moves
+                    allPossibleMoves.Clear();
+                    foreach (EvaluatedMove em in bestQuiescentMoves)
+                    {
+                        allPossibleMoves.Add(em.move);
+                    }
                 }
             }
 
@@ -645,7 +659,7 @@ namespace StudentAI
                 }
                 if (bestValue >= beta)
                 {
-                    chosenMove = null;
+                    chosenMove = move;
 #if DEBUG
                     dt.BestChildMove = move;
                     dt.EventualMoveValue = Convert.ToString(bestValue);
