@@ -1,13 +1,17 @@
 /////////////////////////////////////////////////////////
 // PROGRAM OPTIONS, COMMENT OUT THE ONES YOU DON'T WANT
 /////////////////////////////////////////////////////////
-//#define PROFILE_CODE // if defined, then profiling will be performed
+#define PROFILE_CODE // if defined, then profiling will be performed
 #define PERFORM_ITERATIVE_DEEPENING // if defined then we will start with a depth of MAX_NUM_PLIES and increase by 1 each time through the loop until time runs out (decision tree info will not be valid since the final best move is always from the last completed search not the one that we stopped in the middle of)
 //#define GENERATE_DECISION_TREE // if defined then the decision tree will be available in the GUI if the opponent is a human, otherwise the decision tree will not be generated
+//#define PERFORM_BEAMING // if defined then only the top N best moves of the MAX_NUM_PLIES will be evaluated in iterative deepening
 
-
-#if PERFORM_ITERATIVE_DEEPENING
-    #undef GENERATE_DECISION_TREE // the decision tree is meaningless with iterative deepening since the iteration that was interrupted when the time ran out is incomplete, so we'll undefine it here if necessary
+// make sure that we don't have incompatible options set
+#if (PERFORM_ITERATIVE_DEEPENING && GENERATE_DECISION_TREE)
+    #error (PERFORM_ITERATIVE_DEEPENING and GENERATE_DECISION_TREE are mutually exclusive!) The decision tree is meaningless with iterative deepening since the iteration that was interrupted when the time ran out is incomplete
+#endif
+#if (PERFORM_BEAMING && !PERFORM_ITERATIVE_DEEPENING)
+    #error (If you define PERFORM_BEAMING you must also define PERFORM_ITERATIVE_DEEPENING) Beaming is just a modification to iterative deepening
 #endif
 
 using System;
@@ -26,8 +30,10 @@ namespace StudentAI
         Random random = null;
         ChessMove lastMove = null;
         ChessMove nextLastMove = null;
+#if PERFORM_BEAMING
         List<EvaluatedMove> beamingMoves = null;
         bool bSelectBeamingCandidates = false;
+#endif
         int goalNumPlies = 0;
         int ifSameAs = 0;
 
@@ -50,15 +56,19 @@ namespace StudentAI
             MinValue,
             MaxValue,
             IsOpponentPiece,
+#if PERFORM_BEAMING
             BeamCandidate,
             GetBeamingMoves,
+#endif
             IsKingInCheck
         }
 
         private const int MAX_NUM_PLIES = 4; // the maximum number of half-plies to search, if PERFORM_ITERATIVE_DEEPENING is defined then we will start with this value and increase by 1 each iteration
-        private const int BEAM_N_BEST_MOVES = 3; // the number of top level best moves to beam (only these moves will be explored in iterative deepening)
         private const int MAX_QUIESCENT_MOVES = 0; // the maximum number of quiescent (non-capture) moves that will be evaluated during quiescent trimming
         public const int QUIESCENT_TRIMMING_PLIES = 0; // when ply = <this value> quiescent trimming will begin, set it to 0 for off
+#if PERFORM_BEAMING
+        private const int BEAM_N_BEST_MOVES = 3; // the number of top level best moves to beam (only these moves will be explored in iterative deepening)
+#endif
 
         /// <summary>
         /// The name of your AI
@@ -174,9 +184,11 @@ namespace StudentAI
             if ( random == null )
                 random = new Random();
 
+#if PERFORM_BEAMING
             bSelectBeamingCandidates = (BEAM_N_BEST_MOVES > 0);
             if (bSelectBeamingCandidates)
                 beamingMoves = new List<EvaluatedMove>();
+#endif
 
 #if PERFORM_ITERATIVE_DEEPENING
             do
@@ -190,7 +202,10 @@ namespace StudentAI
                     bestMove = tmpMove;
                     depth++;
                 }
+#if PERFORM_BEAMING
                 bSelectBeamingCandidates = false; // we've found the beaming candidates now beam them
+#endif
+
 #if PERFORM_ITERATIVE_DEEPENING
             } while (bDigDeeper);
 
@@ -638,10 +653,14 @@ namespace StudentAI
             allCaptureMoves = new List<ChessMove>();
             if (nPlies == goalNumPlies)
             {
+#if PERFORM_BEAMING
                 if ((BEAM_N_BEST_MOVES <= 0) || bSelectBeamingCandidates)
                     allPossibleMoves = GetAllLegalMoves(ref boardBeforeMove, ref allCaptureMoves, myColor);
                 else
                     allPossibleMoves = GetBeamingMoves();
+#else
+                allPossibleMoves = GetAllLegalMoves(ref boardBeforeMove, ref allCaptureMoves, myColor);
+#endif
             }
             else
                 allPossibleMoves = GetAllPossibleMoves(ref boardBeforeMove, ref allCaptureMoves, myColor);
@@ -667,10 +686,12 @@ namespace StudentAI
                     bestValue = value;
                     chosenMove = move;
 
+#if PERFORM_BEAMING
                     // if we're still building the beaming moves list then see if this move qualifies, if so
                     // then add it to the list
                     if (bSelectBeamingCandidates && (BEAM_N_BEST_MOVES > 0) && (nPlies == goalNumPlies))
                         BeamCandidate(bestValue, chosenMove);
+#endif
                 }
                 if (bestValue >= beta)
                 {
@@ -745,10 +766,12 @@ namespace StudentAI
                     bestValue = value;
                     chosenMove = move;
 
+#if PERFORM_BEAMING
                     // if we're still building the beaming moves list then see if this move qualifies, if so
                     // then add it to the list
                     if (bSelectBeamingCandidates && (BEAM_N_BEST_MOVES > 0) && (nPlies == goalNumPlies))
                         BeamCandidate(bestValue, chosenMove);
+#endif
                 }
                 if (bestValue >= beta)
                 {
@@ -793,6 +816,7 @@ namespace StudentAI
 			}
 		}
 
+#if PERFORM_BEAMING
         /// <summary>
         /// See if the specified move is one of the best so far, if so then we'll add it to the
         /// list of moves to beam search
@@ -831,6 +855,7 @@ namespace StudentAI
             }
             return moves;
         }
+#endif
 
         /// <summary>
         /// Determine whether the specified players king is in check
