@@ -12,12 +12,13 @@ namespace StudentAI
         Random random = null;
         ChessMove lastMove = null;
         ChessMove nextLastMove = null;
+        int goalNumPlies = 0;
         int ifSameAs = 0;
         #region IChessAI Members that are implemented by the Student
         
-        public const int MAX_NUM_PLIES = 4;
-        public const int MAX_QUIESCENT_MOVES = 2; // the maximum number of quiescent (non-capture) moves that will be evaluated during quiescent trimming
-        public const int QUIESCENT_TRIMMING_PLIES = 0; // when ply = <this value> quiescent trimming will begin, set it to 0 for off
+        public const int MAX_NUM_PLIES = 5;
+        public const int MAX_QUIESCENT_MOVES = 0; // the maximum number of quiescent (non-capture) moves that will be evaluated during quiescent trimming
+        public const int QUIESCENT_TRIMMING_PLIES = 1; // when ply = <this value> quiescent trimming will begin, set it to 0 for off
         public const bool PERFORM_ITERATIVE_DEEPENING = true; // if true then we will start with a depth of MAX_NUM_PLIES and increase by 1 each time through the loop until time runs out (decision tree info will not be valid since the final best move is always from the last completed search not the one that we stopped in the middle of)
 
         /// <summary>
@@ -131,9 +132,10 @@ namespace StudentAI
 
             do
             {
+                goalNumPlies = depth;
                 tmpMove = MiniMaxDecision(board, myColor, depth);
                 bDigDeeper = !( IsMyTurnOver() );
-                if (bDigDeeper) // don't store the best move of the iteration that was interrupted, it's incomplete
+                if (bDigDeeper || bestMove == null) // don't store the best move of the iteration that was interrupted, it's incomplete
                 {
                     bestMove = tmpMove;
                     depth++;
@@ -233,81 +235,76 @@ namespace StudentAI
         /// </summary>
         /// <param name="board">The board to evaluate</param>
         /// <param name="myColor">The color of my pieces</param>
-        /// <param name="numPossibleMoves">The number of moves possible for the specified color</param>
         /// <returns>The utility value of this board</returns>
-        private int Utility(ChessBoard board, ChessColor myColor, int numPossibleMoves)
+        private int Utility(ChessBoard board, ChessColor myColor)
         {
-            if (numPossibleMoves == 0)
-                return -500000; // don't allow stalemate
+            ChessPiece piece = ChessPiece.Empty;
+            int score = 0;
+            if (myColor == ChessColor.White)
             {
-                ChessPiece piece = ChessPiece.Empty;
-                int score = 0;
-                if (myColor == ChessColor.White)
-                {
-                    for (int i = 0; i < ChessBoard.NumberOfRows; i++)
-                        for (int j = 0; j < ChessBoard.NumberOfColumns; j++)
-                            if (board[i, j] != ChessPiece.Empty)
-                            {
-                                piece = board[i, j];
-                                if (piece == ChessPiece.BlackBishop || piece == ChessPiece.BlackKnight)
-                                    score = score - 30000;
-                                else if (piece == ChessPiece.BlackPawn)
-                                    score = score - 10000;
-                                else if (piece == ChessPiece.BlackRook)
-                                    score = score - 50000;
-                                else if (piece == ChessPiece.BlackQueen)
-                                    score = score - 90000;
-                                else if (piece == ChessPiece.BlackKing)
-                                    score = score - 9000000;
-                                else if (piece == ChessPiece.WhiteBishop || piece == ChessPiece.WhiteKnight)
-                                    score = score + 30000;
-                                else if (piece == ChessPiece.WhitePawn)
-                                    score = score + 10000;
-                                else if (piece == ChessPiece.WhiteRook)
-                                    score = score + 50000;
-                                else if (piece == ChessPiece.WhiteQueen)
-                                    score = score + 90000;
-                                else if (piece == ChessPiece.WhiteKing)
-                                    score = score + 9000000;
-                            }
-                }
-                else if (myColor == ChessColor.Black)
-                {
-                    for (int i = 0; i < ChessBoard.NumberOfRows; i++)
-                        for (int j = 0; j < ChessBoard.NumberOfColumns; j++)
-                            if (board[i, j] != ChessPiece.Empty)
-                            {
-                                piece = board[i, j];
-                                if (piece == ChessPiece.BlackBishop || piece == ChessPiece.BlackKnight)
-                                    score = score + 30000;
-                                else if (piece == ChessPiece.BlackPawn)
-                                    score = score + 10000;
-                                else if (piece == ChessPiece.BlackRook)
-                                    score = score + 50000;
-                                else if (piece == ChessPiece.BlackQueen)
-                                    score = score + 90000;
-                                else if (piece == ChessPiece.BlackKing)
-                                    score = score + 9000000;
-                                else if (piece == ChessPiece.WhiteBishop || piece == ChessPiece.WhiteKnight)
-                                    score = score - 30000;
-                                else if (piece == ChessPiece.WhitePawn)
-                                    score = score - 10000;
-                                else if (piece == ChessPiece.WhiteRook)
-                                    score = score - 50000;
-                                else if (piece == ChessPiece.WhiteQueen)
-                                    score = score - 90000;
-                                else if (piece == ChessPiece.WhiteKing)
-                                    score = score - 9000000;
-                            }
-                }
+                for (int i = 0; i < ChessBoard.NumberOfRows; i++)
+                    for (int j = 0; j < ChessBoard.NumberOfColumns; j++)
+                        if (board[i, j] != ChessPiece.Empty)
+                        {
+                            piece = board[i, j];
+                            if (piece == ChessPiece.BlackBishop || piece == ChessPiece.BlackKnight)
+                                score = score - 30000;
+                            else if (piece == ChessPiece.BlackPawn)
+                                score = score - 10000;
+                            else if (piece == ChessPiece.BlackRook)
+                                score = score - 50000;
+                            else if (piece == ChessPiece.BlackQueen)
+                                score = score - 90000;
+                            else if (piece == ChessPiece.BlackKing)
+                                score = score - 9000000;
+                            else if (piece == ChessPiece.WhiteBishop || piece == ChessPiece.WhiteKnight)
+                                score = score + 30000;
+                            else if (piece == ChessPiece.WhitePawn)
+                                score = score + 10000;
+                            else if (piece == ChessPiece.WhiteRook)
+                                score = score + 50000;
+                            else if (piece == ChessPiece.WhiteQueen)
+                                score = score + 90000;
+                            else if (piece == ChessPiece.WhiteKing)
+                                score = score + 9000000;
+                        }
+            }
+            else if (myColor == ChessColor.Black)
+            {
+                for (int i = 0; i < ChessBoard.NumberOfRows; i++)
+                    for (int j = 0; j < ChessBoard.NumberOfColumns; j++)
+                        if (board[i, j] != ChessPiece.Empty)
+                        {
+                            piece = board[i, j];
+                            if (piece == ChessPiece.BlackBishop || piece == ChessPiece.BlackKnight)
+                                score = score + 30000;
+                            else if (piece == ChessPiece.BlackPawn)
+                                score = score + 10000;
+                            else if (piece == ChessPiece.BlackRook)
+                                score = score + 50000;
+                            else if (piece == ChessPiece.BlackQueen)
+                                score = score + 90000;
+                            else if (piece == ChessPiece.BlackKing)
+                                score = score + 9000000;
+                            else if (piece == ChessPiece.WhiteBishop || piece == ChessPiece.WhiteKnight)
+                                score = score - 30000;
+                            else if (piece == ChessPiece.WhitePawn)
+                                score = score - 10000;
+                            else if (piece == ChessPiece.WhiteRook)
+                                score = score - 50000;
+                            else if (piece == ChessPiece.WhiteQueen)
+                                score = score - 90000;
+                            else if (piece == ChessPiece.WhiteKing)
+                                score = score - 9000000;
+                        }
+            }
 
 //               if (score == 0 || ifSameAs == score)
-               {
-                   score += random.Next(0, 1000);
-               }
-               ifSameAs = score;                                             
-               return score;
+            {
+                score += random.Next(0, 1000);
             }
+            ifSameAs = score;                                             
+            return score;
         }
 
         /// <summary>
@@ -340,12 +337,13 @@ namespace StudentAI
         /// <summary>
         /// This function looks ahead nPlies moves to determine what the best move is now
         /// </summary>
-        /// <param name="boardBeforeMove"></param>The board before we move
-        /// <param name="myColor"></param>The color of my pieces
-        /// <param name="nPlies"></param>The number of plies to look ahead
+        /// <param name="boardBeforeMove">The board before we move</param>
+        /// <param name="myColor">The color of my pieces</param>
+        /// <param name="nPlies">The number of plies to look ahead</param>
         /// <returns>The best move, null if none</returns>
         private ChessMove MiniMaxDecision(ChessBoard boardBeforeMove, ChessColor myColor, int nPlies)
         {
+            List<ChessMove> dontcare = null;
             ChessBoard finalBoard = null;
             ChessColor opponentColor = (myColor == ChessColor.Black) ? ChessColor.White : ChessColor.Black;
             ChessMove bestMove = null;
@@ -372,7 +370,7 @@ namespace StudentAI
             dt.BestChildMove = bestMove;
 #endif
             // see if they are in check / checkmate / stalemate
-            List<ChessMove> allPossibleMoves2 = GetAllLegalMoves(ref finalBoard, opponentColor);
+            List<ChessMove> allPossibleMoves2 = GetAllLegalMoves(ref finalBoard, ref dontcare, opponentColor);
             if (IsKingInCheck(finalBoard, opponentColor))
             {
                 bestMove.Flag = ChessFlag.Check;
@@ -394,9 +392,9 @@ namespace StudentAI
         /// <summary>
         /// This mutually recursive function tries to find the best move for the opponent
         /// </summary>
-        /// <param name="boardBeforeMove"></param>The board before we move
-        /// <param name="myColor"></param>The color of my (the opponent) pieces
-        /// <param name="nPlies"></param>The number of plies remaining to look ahead
+        /// <param name="boardBeforeMove">The board before we move</param>
+        /// <param name="myColor">The color of my (the opponent) pieces</param>
+        /// <param name="nPlies">The number of plies remaining to look ahead</param>
         /// <returns>The utility value of this branch</returns>
         private int MinValue(ChessBoard boardBeforeMove, ChessColor myColor, int alpha, int beta, ref ChessMove chosenMove, ref DecisionTree dt, int nPlies)
         {
@@ -416,7 +414,7 @@ namespace StudentAI
             // it considers to be the "best" value as it's value.
             if (nPlies == 0 || TerminalTest(boardBeforeMove))
             {
-                return Utility(boardBeforeMove, opponentColor, allPossibleMoves.Count);
+                return Utility(boardBeforeMove, opponentColor);
             }
 
             // peek ahead through all possible moves and find the best one.
@@ -470,7 +468,7 @@ namespace StudentAI
                     {
                         tempBoard = boardBeforeMove.Clone();
                         tempBoard.MakeMove(move);
-                        score = Utility(tempBoard, opponentColor, 0);
+                        score = Utility(tempBoard, opponentColor);
                         if (bestQuiescentMoves.Count < nBest)
                         {
                             bestQuiescentMoves.Add(new EvaluatedMove(move, score));
@@ -545,7 +543,7 @@ namespace StudentAI
         public int MaxValue(ChessBoard boardBeforeMove, ChessColor myColor, int alpha, int beta, ref ChessMove chosenMove, ref DecisionTree dt, int nPlies)
         {
             List<ChessMove> allCaptureMoves = new List<ChessMove>();
-            List<ChessMove> allPossibleMoves = GetAllPossibleMoves(ref boardBeforeMove, ref allCaptureMoves, myColor);
+            List<ChessMove> allPossibleMoves = null;
             ChessBoard tempBoard = null;
             ChessColor opponentColor = (myColor == ChessColor.Black) ? ChessColor.White : ChessColor.Black;
             int bestValue = Int32.MinValue;
@@ -560,8 +558,14 @@ namespace StudentAI
             // it considers to be the "best" value as it's value.
             if (nPlies == 0 || TerminalTest(boardBeforeMove))
             {
-                return Utility(boardBeforeMove, myColor, allPossibleMoves.Count);
+                return Utility(boardBeforeMove, myColor);
             }
+
+            // calculate all possible moves (the first time through restrict it to legal moves so we don't accidentally cheat)
+            if ( nPlies == goalNumPlies )
+                allPossibleMoves = GetAllLegalMoves(ref boardBeforeMove, ref allCaptureMoves, myColor);
+            else
+                allPossibleMoves = GetAllPossibleMoves(ref boardBeforeMove, ref allCaptureMoves, myColor);
 
             // peek ahead through all possible moves and find the best one
             // we're using move ordering to improve alpha beta pruning so
@@ -612,7 +616,7 @@ namespace StudentAI
                     {
                         tempBoard = boardBeforeMove.Clone();
                         tempBoard.MakeMove(move);
-                        score = Utility(tempBoard, myColor, 0);
+                        score = Utility(tempBoard, myColor);
                         if (bestQuiescentMoves.Count < nBest)
                         {
                             bestQuiescentMoves.Add(new EvaluatedMove(move, score));
@@ -833,11 +837,11 @@ namespace StudentAI
         /// This function discovers all legal moves for the piece at the specified location and adds the moves to the list
         /// <summary>
         /// <param name="currentBoard">The current board state
+        /// <param name="allCaptureMoves">The buffer to receive all capture moves</param>
         /// <param name="myColor">The color of the player whos moving
         /// <returns>A list of all legal moves</returns>
-        private List<ChessMove> GetAllLegalMoves(ref ChessBoard currentBoard, ChessColor myColor)
+        private List<ChessMove> GetAllLegalMoves(ref ChessBoard currentBoard, ref List<ChessMove> allCaptureMoves, ChessColor myColor)
         {
-            List<ChessMove> allCaptureMoves = null;
             List<ChessMove> allMoves = GetAllPossibleMoves(ref currentBoard, ref allCaptureMoves, myColor);
             ChessMove move = null;
             ChessBoard tmpBoard = null;
