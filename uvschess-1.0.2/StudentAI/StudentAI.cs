@@ -1,3 +1,15 @@
+/////////////////////////////////////////////////////////
+// PROGRAM OPTIONS, COMMENT OUT THE ONES YOU DON'T WANT
+/////////////////////////////////////////////////////////
+//#define PROFILE_CODE // if defined, then profiling will be performed
+#define PERFORM_ITERATIVE_DEEPENING // if defined then we will start with a depth of MAX_NUM_PLIES and increase by 1 each time through the loop until time runs out (decision tree info will not be valid since the final best move is always from the last completed search not the one that we stopped in the middle of)
+//#define GENERATE_DECISION_TREE // if defined then the decision tree will be available in the GUI if the opponent is a human, otherwise the decision tree will not be generated
+
+
+#if PERFORM_ITERATIVE_DEEPENING
+    #undef GENERATE_DECISION_TREE // the decision tree is meaningless with iterative deepening since the iteration that was interrupted when the time ran out is incomplete, so we'll undefine it here if necessary
+#endif
+
 using System;
 using System.Collections.Generic;
 using System.Text;
@@ -8,18 +20,45 @@ namespace StudentAI
 {
     public class StudentAI : IChessAI
     {
+        #region IChessAI Members that are implemented by the Student
+
         DecisionTree dt = null;
         Random random = null;
         ChessMove lastMove = null;
         ChessMove nextLastMove = null;
+        List<EvaluatedMove> beamingMoves = null;
+        bool bSelectBeamingCandidates = false;
         int goalNumPlies = 0;
         int ifSameAs = 0;
-        #region IChessAI Members that are implemented by the Student
-        
-        public const int MAX_NUM_PLIES = 5;
-        public const int MAX_QUIESCENT_MOVES = 0; // the maximum number of quiescent (non-capture) moves that will be evaluated during quiescent trimming
-        public const int QUIESCENT_TRIMMING_PLIES = 1; // when ply = <this value> quiescent trimming will begin, set it to 0 for off
-        public const bool PERFORM_ITERATIVE_DEEPENING = true; // if true then we will start with a depth of MAX_NUM_PLIES and increase by 1 each time through the loop until time runs out (decision tree info will not be valid since the final best move is always from the last completed search not the one that we stopped in the middle of)
+
+        private enum MyAIProfilerTags
+        {
+            AddAllPossibleMovesKing,
+            AddAllPossibleMovesQueen,
+            AddAllPossibleMovesBishop,
+            AddAllPossibleMovesKnight,
+            AddAllPossibleMovesRook,
+            AddAllPossibleMovesPawn,
+            AddAllPossibleMovesDiagonal,
+            AddAllPossibleMovesVertical,
+            AddAllPossibleMovesHorizontal,
+            IsValidMove,
+            GetAllLegalMoves,
+            GetAllPossibleMoves,
+            Utility,
+            TerminalTest,
+            MinValue,
+            MaxValue,
+            IsOpponentPiece,
+            BeamCandidate,
+            GetBeamingMoves,
+            IsKingInCheck
+        }
+
+        private const int MAX_NUM_PLIES = 4; // the maximum number of half-plies to search, if PERFORM_ITERATIVE_DEEPENING is defined then we will start with this value and increase by 1 each iteration
+        private const int BEAM_N_BEST_MOVES = 3; // the number of top level best moves to beam (only these moves will be explored in iterative deepening)
+        private const int MAX_QUIESCENT_MOVES = 0; // the maximum number of quiescent (non-capture) moves that will be evaluated during quiescent trimming
+        public const int QUIESCENT_TRIMMING_PLIES = 0; // when ply = <this value> quiescent trimming will begin, set it to 0 for off
 
         /// <summary>
         /// The name of your AI
@@ -122,6 +161,11 @@ namespace StudentAI
         /// <returns> Returns the best chess move the player has for the given chess board</returns>
         public ChessMove GetNextMove(ChessBoard board, ChessColor myColor)
         {
+#if PROFILE_CODE
+            Profiler.TagNames = Enum.GetNames(typeof(MyAIProfilerTags));
+            Profiler.MinisProfilerTag = (int)MyAIProfilerTags.MinValue;
+            Profiler.MaxsProfilerTag = (int)MyAIProfilerTags.MaxValue;
+#endif
             ChessMove bestMove = null;
             ChessMove tmpMove = null;
             bool bDigDeeper = true;
@@ -130,22 +174,31 @@ namespace StudentAI
             if ( random == null )
                 random = new Random();
 
+            bSelectBeamingCandidates = (BEAM_N_BEST_MOVES > 0);
+            if (bSelectBeamingCandidates)
+                beamingMoves = new List<EvaluatedMove>();
+
+#if PERFORM_ITERATIVE_DEEPENING
             do
             {
+#endif
                 goalNumPlies = depth;
                 tmpMove = MiniMaxDecision(board, myColor, depth);
                 bDigDeeper = !( IsMyTurnOver() );
-                if (bDigDeeper || bestMove == null) // don't store the best move of the iteration that was interrupted, it's incomplete
+                if (bDigDeeper || bestMove == null) // don't store the best move of the iteration if our time ran out, it's incomplete
                 {
                     bestMove = tmpMove;
                     depth++;
                 }
-            } while (bDigDeeper && PERFORM_ITERATIVE_DEEPENING);
-            if ( PERFORM_ITERATIVE_DEEPENING )
-                this.Log("Depth reached = " + Convert.ToString(depth - 1)); // subtract 1 since the last iteration didn't complete
-            else
-                this.Log("Depth reached = " + Convert.ToString(depth));
+                bSelectBeamingCandidates = false; // we've found the beaming candidates now beam them
+#if PERFORM_ITERATIVE_DEEPENING
+            } while (bDigDeeper);
 
+            this.Log("Depth reached = " + Convert.ToString(depth - 1)); // subtract 1 since the last iteration didn't complete
+#endif
+#if PROFILE_CODE
+            Profiler.SetDepthReachedDuringThisTurn(depth - 1);
+#endif
             return bestMove;
         }
 
@@ -159,6 +212,9 @@ namespace StudentAI
         /// <returns>Returns true if the move was valid</returns>
         public bool IsValidMove(ChessBoard boardBeforeMove, ChessMove moveToCheck, ChessColor colorOfPlayerMoving)
         {
+#if PROFILE_CODE
+            Profiler.IncrementTagCount((int)MyAIProfilerTags.IsValidMove);
+#endif
             List<ChessMove> allMoves = new List<ChessMove>();
             List<ChessMove> allCaptureMoves = null;
             ChessPiece piece;
@@ -238,6 +294,9 @@ namespace StudentAI
         /// <returns>The utility value of this board</returns>
         private int Utility(ChessBoard board, ChessColor myColor)
         {
+#if PROFILE_CODE
+            Profiler.IncrementTagCount((int)MyAIProfilerTags.Utility);
+#endif
             ChessPiece piece = ChessPiece.Empty;
             int score = 0;
             if (myColor == ChessColor.White)
@@ -312,8 +371,11 @@ namespace StudentAI
         /// </summary>
         /// <param name="board">The board to examine</param>
         /// <returns>true if someone lost, false otherwise</returns>
-        public bool TerminalTest(ChessBoard board)
+        private bool TerminalTest(ChessBoard board)
         {
+#if PROFILE_CODE
+            Profiler.IncrementTagCount((int)MyAIProfilerTags.TerminalTest);
+#endif
             ChessPiece piece;
             int numKings = 0;
 
@@ -349,7 +411,7 @@ namespace StudentAI
             ChessMove bestMove = null;
             int value;
 
-#if DEBUG
+#if GENERATE_DECISION_TREE
             // Tell UvsChess about the decision tree object
             dt = new DecisionTree(boardBeforeMove);
             SetDecisionTree(dt);
@@ -366,7 +428,7 @@ namespace StudentAI
             finalBoard = boardBeforeMove.Clone();
             finalBoard.MakeMove(bestMove);
 
-#if DEBUG
+#if GENERATE_DECISION_TREE
             dt.BestChildMove = bestMove;
 #endif
             // see if they are in check / checkmate / stalemate
@@ -398,8 +460,11 @@ namespace StudentAI
         /// <returns>The utility value of this branch</returns>
         private int MinValue(ChessBoard boardBeforeMove, ChessColor myColor, int alpha, int beta, ref ChessMove chosenMove, ref DecisionTree dt, int nPlies)
         {
-            List<ChessMove> allCaptureMoves = new List<ChessMove>();
-            List<ChessMove> allPossibleMoves = GetAllPossibleMoves(ref boardBeforeMove, ref allCaptureMoves, myColor);
+#if PROFILE_CODE
+            Profiler.IncrementTagCount((int)MyAIProfilerTags.MinValue);
+#endif
+            List<ChessMove> allCaptureMoves = null;
+            List<ChessMove> allPossibleMoves = null;
             ChessBoard tempBoard = null;
             ChessColor opponentColor = (myColor == ChessColor.Black) ? ChessColor.White : ChessColor.Black;
             int bestValue = Int32.MaxValue;
@@ -417,6 +482,10 @@ namespace StudentAI
                 return Utility(boardBeforeMove, opponentColor);
             }
 
+            // generate posible moves
+            allCaptureMoves = new List<ChessMove>();
+            allPossibleMoves = GetAllPossibleMoves(ref boardBeforeMove, ref allCaptureMoves, myColor);
+
             // peek ahead through all possible moves and find the best one.
             // we're using move ordering to improve alpha beta pruning so
             // that's why we have to loop multiple times
@@ -424,12 +493,12 @@ namespace StudentAI
             {
                 tempBoard = boardBeforeMove.Clone();
                 tempBoard.MakeMove(move);
-#if DEBUG
+#if GENERATE_DECISION_TREE
                 dt.AddChild(tempBoard, move);
                 dt = dt.LastChild;
 #endif
                 value = MaxValue(tempBoard, opponentColor, alpha, beta, ref valueMove, ref dt, nPlies - 1);
-#if DEBUG
+#if GENERATE_DECISION_TREE
                 dt.EventualMoveValue = Convert.ToString(value);
                 dt = dt.Parent;
 #endif
@@ -441,7 +510,7 @@ namespace StudentAI
                 if (bestValue <= alpha)
                 {
                     chosenMove = move;
-#if DEBUG
+#if GENERATE_DECISION_TREE
                     dt.BestChildMove = move;
                     dt.EventualMoveValue = Convert.ToString(bestValue);
 #endif
@@ -499,12 +568,12 @@ namespace StudentAI
             {
                 tempBoard = boardBeforeMove.Clone();
                 tempBoard.MakeMove(move);
-#if DEBUG
+#if GENERATE_DECISION_TREE
                 dt.AddChild(tempBoard, move);
                 dt = dt.LastChild;
 #endif
                 value = MaxValue(tempBoard, opponentColor, alpha, beta, ref valueMove, ref dt, nPlies - 1);
-#if DEBUG
+#if GENERATE_DECISION_TREE
                 dt.EventualMoveValue = Convert.ToString(value);
                 dt = dt.Parent;
 #endif
@@ -516,7 +585,7 @@ namespace StudentAI
                 if (bestValue <= alpha)
                 {
                     chosenMove = move;
-#if DEBUG
+#if GENERATE_DECISION_TREE
                     dt.BestChildMove = move;
                     dt.EventualMoveValue = Convert.ToString(bestValue);
 #endif
@@ -527,7 +596,7 @@ namespace StudentAI
                     beta = bestValue;
                 }
             }
-#if DEBUG
+#if GENERATE_DECISION_TREE
             dt.BestChildMove = chosenMove;
 #endif
             return bestValue;
@@ -542,7 +611,11 @@ namespace StudentAI
         /// <returns>The utility value of this branch</returns>
         public int MaxValue(ChessBoard boardBeforeMove, ChessColor myColor, int alpha, int beta, ref ChessMove chosenMove, ref DecisionTree dt, int nPlies)
         {
-            List<ChessMove> allCaptureMoves = new List<ChessMove>();
+#if PROFILE_CODE
+            Profiler.IncrementTagCount((int)MyAIProfilerTags.MaxValue);
+            Profiler.SetDepthReachedDuringThisTurn(goalNumPlies - nPlies);
+#endif
+            List<ChessMove> allCaptureMoves = null;
             List<ChessMove> allPossibleMoves = null;
             ChessBoard tempBoard = null;
             ChessColor opponentColor = (myColor == ChessColor.Black) ? ChessColor.White : ChessColor.Black;
@@ -562,8 +635,14 @@ namespace StudentAI
             }
 
             // calculate all possible moves (the first time through restrict it to legal moves so we don't accidentally cheat)
-            if ( nPlies == goalNumPlies )
-                allPossibleMoves = GetAllLegalMoves(ref boardBeforeMove, ref allCaptureMoves, myColor);
+            allCaptureMoves = new List<ChessMove>();
+            if (nPlies == goalNumPlies)
+            {
+                if ((BEAM_N_BEST_MOVES <= 0) || bSelectBeamingCandidates)
+                    allPossibleMoves = GetAllLegalMoves(ref boardBeforeMove, ref allCaptureMoves, myColor);
+                else
+                    allPossibleMoves = GetBeamingMoves();
+            }
             else
                 allPossibleMoves = GetAllPossibleMoves(ref boardBeforeMove, ref allCaptureMoves, myColor);
 
@@ -574,12 +653,12 @@ namespace StudentAI
             {
                 tempBoard = boardBeforeMove.Clone();
                 tempBoard.MakeMove(move);
-#if DEBUG
+#if GENERATE_DECISION_TREE
                 dt.AddChild(tempBoard, move);
                 dt = dt.LastChild;
 #endif
                 value = MinValue(tempBoard, opponentColor, alpha, beta, ref valueMove, ref dt, nPlies - 1);
-#if DEBUG
+#if GENERATE_DECISION_TREE
                 dt.EventualMoveValue = Convert.ToString(value);
                 dt = dt.Parent;
 #endif
@@ -587,11 +666,16 @@ namespace StudentAI
                 {
                     bestValue = value;
                     chosenMove = move;
+
+                    // if we're still building the beaming moves list then see if this move qualifies, if so
+                    // then add it to the list
+                    if (bSelectBeamingCandidates && (BEAM_N_BEST_MOVES > 0) && (nPlies == goalNumPlies))
+                        BeamCandidate(bestValue, chosenMove);
                 }
                 if (bestValue >= beta)
                 {
                     chosenMove = move;
-#if DEBUG
+#if GENERATE_DECISION_TREE
                     dt.BestChildMove = move;
 #endif
                     return bestValue; // bail, min will never choose this value
@@ -647,12 +731,12 @@ namespace StudentAI
             {
                 tempBoard = boardBeforeMove.Clone();
                 tempBoard.MakeMove(move);
-#if DEBUG
+#if GENERATE_DECISION_TREE
                 dt.AddChild(tempBoard, move);
                 dt = dt.LastChild;
 #endif
                 value = MinValue(tempBoard, opponentColor, alpha, beta, ref valueMove, ref dt, nPlies - 1);
-#if DEBUG
+#if GENERATE_DECISION_TREE
                 dt.EventualMoveValue = Convert.ToString(value);
                 dt = dt.Parent;
 #endif
@@ -660,11 +744,16 @@ namespace StudentAI
                 {
                     bestValue = value;
                     chosenMove = move;
+
+                    // if we're still building the beaming moves list then see if this move qualifies, if so
+                    // then add it to the list
+                    if (bSelectBeamingCandidates && (BEAM_N_BEST_MOVES > 0) && (nPlies == goalNumPlies))
+                        BeamCandidate(bestValue, chosenMove);
                 }
                 if (bestValue >= beta)
                 {
                     chosenMove = move;
-#if DEBUG
+#if GENERATE_DECISION_TREE
                     dt.BestChildMove = move;
                     dt.EventualMoveValue = Convert.ToString(bestValue);
 #endif
@@ -676,9 +765,10 @@ namespace StudentAI
                 }
             }
 
-#if DEBUG
+#if GENERATE_DECISION_TREE
             dt.BestChildMove = chosenMove;
 #endif
+
             return bestValue;
         }
 
@@ -689,8 +779,11 @@ namespace StudentAI
 		/// <param name="myColor">The color of my pieces
         /// <returns>True if the piece belongs to the opponent, otherwise false</returns>
 		private bool IsOpponentPiece ( ChessPiece piece, ChessColor myColor )
-		{
-			if ( myColor == ChessColor.White )
+        {
+#if PROFILE_CODE
+            Profiler.IncrementTagCount((int)MyAIProfilerTags.IsOpponentPiece);
+#endif
+            if (myColor == ChessColor.White)
 			{
 				return ( piece == ChessPiece.BlackBishop || piece == ChessPiece.BlackKing || piece == ChessPiece.BlackKnight || piece == ChessPiece.BlackPawn || piece == ChessPiece.BlackQueen || piece == ChessPiece.BlackRook );
 			}
@@ -701,6 +794,45 @@ namespace StudentAI
 		}
 
         /// <summary>
+        /// See if the specified move is one of the best so far, if so then we'll add it to the
+        /// list of moves to beam search
+        /// </summary>
+        /// <param name="value">The final board value associated with the move</param>
+        /// <param name="move">The move to check</param>
+        private void BeamCandidate(int value, ChessMove move)
+        {
+#if PROFILE_CODE
+            Profiler.IncrementTagCount((int)MyAIProfilerTags.BeamCandidate);
+#endif
+            if (beamingMoves.Count < BEAM_N_BEST_MOVES)
+                beamingMoves.Add(new EvaluatedMove(move, value));
+            else if (value > beamingMoves[0].score)
+            {
+                beamingMoves[0] = new EvaluatedMove(move, value);
+                beamingMoves.Sort(delegate(EvaluatedMove m1, EvaluatedMove m2) { return m1.score.CompareTo(m2.score); });
+            }
+        }
+
+        /// <summary>
+        /// Retrieve a list of all of the moves that will be beam searched
+        /// </summary>
+        /// <returns>A list of all of the moves to beam search</returns>
+        private List<ChessMove> GetBeamingMoves()
+        {
+#if PROFILE_CODE
+            Profiler.IncrementTagCount((int)MyAIProfilerTags.GetBeamingMoves);
+#endif
+            if (beamingMoves == null)
+                throw new Exception("Beaming moves is null!");
+            List<ChessMove> moves = new List<ChessMove>();
+            foreach (EvaluatedMove em in beamingMoves)
+            {
+                moves.Add(em.move);
+            }
+            return moves;
+        }
+
+        /// <summary>
         /// Determine whether the specified players king is in check
         /// </summary>
         /// <param name="board"></param>The current board state
@@ -708,6 +840,9 @@ namespace StudentAI
         /// <returns>true if player myColor's king is in check, otherwise false</returns>
         private bool IsKingInCheck(ChessBoard board, ChessColor myColor)
         {
+#if PROFILE_CODE
+            Profiler.IncrementTagCount((int)MyAIProfilerTags.IsKingInCheck);
+#endif
             ChessColor opponentColor = (myColor == ChessColor.White) ? ChessColor.Black : ChessColor.White;
             List<ChessMove> examineMoves = new List<ChessMove>();
             List<ChessMove> allMoves = new List<ChessMove>();
@@ -842,6 +977,9 @@ namespace StudentAI
         /// <returns>A list of all legal moves</returns>
         private List<ChessMove> GetAllLegalMoves(ref ChessBoard currentBoard, ref List<ChessMove> allCaptureMoves, ChessColor myColor)
         {
+#if PROFILE_CODE
+            Profiler.IncrementTagCount((int)MyAIProfilerTags.GetAllLegalMoves);
+#endif
             List<ChessMove> allMoves = GetAllPossibleMoves(ref currentBoard, ref allCaptureMoves, myColor);
             ChessMove move = null;
             ChessBoard tmpBoard = null;
@@ -871,6 +1009,9 @@ namespace StudentAI
         /// <returns>A list of all possible moves</returns>
         private List<ChessMove> GetAllPossibleMoves(ref ChessBoard currentBoard, ref List<ChessMove> allCaptureMoves, ChessColor myColor)
         {
+#if PROFILE_CODE
+            Profiler.IncrementTagCount((int)MyAIProfilerTags.GetAllPossibleMoves);
+#endif
             List<ChessMove> allMoves = new List<ChessMove>();
             ChessPiece piece;
            
@@ -928,7 +1069,10 @@ namespace StudentAI
         /// <param name="y">The bishops y location on the board
         ///
         private void AddAllPossibleMovesPawn(ref List<ChessMove> allMoves, ref List<ChessMove> allCaptureMoves, ref ChessBoard currentBoard, ChessColor myColor, int x, int y)
-		{
+        {
+#if PROFILE_CODE
+            Profiler.IncrementTagCount((int)MyAIProfilerTags.AddAllPossibleMovesPawn);
+#endif
             ChessLocation from = new ChessLocation(x, y);
             int newX;
             int newY;
@@ -1013,8 +1157,11 @@ namespace StudentAI
         /// <param name="y">The bishops y location on the board
         ///
         private void AddAllPossibleMovesRook(ref List<ChessMove> allMoves, ref List<ChessMove> allCaptureMoves, ref ChessBoard currentBoard, ChessColor myColor, int x, int y)
-		{
-			AddAllPossibleMovesHorizontal ( ref allMoves, ref allCaptureMoves, ref currentBoard, myColor, x, y );
+        {
+#if PROFILE_CODE
+            Profiler.IncrementTagCount((int)MyAIProfilerTags.AddAllPossibleMovesRook);
+#endif
+            AddAllPossibleMovesHorizontal(ref allMoves, ref allCaptureMoves, ref currentBoard, myColor, x, y);
 			AddAllPossibleMovesVertical ( ref allMoves, ref allCaptureMoves, ref currentBoard, myColor, x, y );
 		}
 
@@ -1029,8 +1176,11 @@ namespace StudentAI
         /// <param name="y">The bishops y location on the board
         ///
         private void AddAllPossibleMovesBishop(ref List<ChessMove> allMoves, ref List<ChessMove> allCaptureMoves, ref ChessBoard currentBoard, ChessColor myColor, int x, int y)
-		{
-			AddAllPossibleMovesDiagonal ( ref allMoves, ref allCaptureMoves, ref currentBoard, myColor, x, y );
+        {
+#if PROFILE_CODE
+            Profiler.IncrementTagCount((int)MyAIProfilerTags.AddAllPossibleMovesBishop);
+#endif
+            AddAllPossibleMovesDiagonal(ref allMoves, ref allCaptureMoves, ref currentBoard, myColor, x, y);
 		}
 
         /// <summary>
@@ -1044,8 +1194,11 @@ namespace StudentAI
         /// <param name="y">The bishops y location on the board
         ///
         private void AddAllPossibleMovesQueen(ref List<ChessMove> allMoves, ref List<ChessMove> allCaptureMoves, ref ChessBoard currentBoard, ChessColor myColor, int x, int y)
-		{
-			AddAllPossibleMovesDiagonal ( ref allMoves, ref allCaptureMoves, ref currentBoard, myColor, x, y );
+        {
+#if PROFILE_CODE
+            Profiler.IncrementTagCount((int)MyAIProfilerTags.AddAllPossibleMovesQueen);
+#endif
+            AddAllPossibleMovesDiagonal(ref allMoves, ref allCaptureMoves, ref currentBoard, myColor, x, y);
             AddAllPossibleMovesVertical(ref allMoves, ref allCaptureMoves, ref currentBoard, myColor, x, y);
             AddAllPossibleMovesHorizontal(ref allMoves, ref allCaptureMoves, ref currentBoard, myColor, x, y);
 		}
@@ -1062,6 +1215,9 @@ namespace StudentAI
         ///
         private void AddAllPossibleMovesKnight(ref List<ChessMove> allMoves, ref List<ChessMove> allCaptureMoves, ref ChessBoard currentBoard, ChessColor myColor, int x, int y)
         {
+#if PROFILE_CODE
+            Profiler.IncrementTagCount((int)MyAIProfilerTags.AddAllPossibleMovesKnight);
+#endif
             ChessLocation from = new ChessLocation(x, y);
             int newX;
             int newY;
@@ -1276,6 +1432,9 @@ namespace StudentAI
         ///
         private void AddAllPossibleMovesKing(ref List<ChessMove> allMoves, ref List<ChessMove> allCaptureMoves, ref ChessBoard currentBoard, ChessColor myColor, int x, int y)
         {
+#if PROFILE_CODE
+            Profiler.IncrementTagCount((int)MyAIProfilerTags.AddAllPossibleMovesKing);
+#endif
             ChessLocation from = new ChessLocation(x, y);
             int newX = x;
             int newY = y;
@@ -1376,7 +1535,10 @@ namespace StudentAI
         /// <param name="y">The bishops y location on the board
         ///
         private void AddAllPossibleMovesDiagonal(ref List<ChessMove> allMoves, ref List<ChessMove> allCaptureMoves, ref ChessBoard currentBoard, ChessColor myColor, int x, int y)
-		{
+        {
+#if PROFILE_CODE
+            Profiler.IncrementTagCount((int)MyAIProfilerTags.AddAllPossibleMovesDiagonal);
+#endif
             ChessLocation from = new ChessLocation(x, y);
 			int newX, newY;
 
@@ -1475,7 +1637,10 @@ namespace StudentAI
         /// <param name="y">The bishops y location on the board
         ///
         private void AddAllPossibleMovesVertical(ref List<ChessMove> allMoves, ref List<ChessMove> allCaptureMoves, ref ChessBoard currentBoard, ChessColor myColor, int x, int y)
-		{
+        {
+#if PROFILE_CODE
+            Profiler.IncrementTagCount((int)MyAIProfilerTags.AddAllPossibleMovesVertical);
+#endif
             ChessLocation from = new ChessLocation(x, y);
 			// looking up
 			for ( int newY = y - 1; newY >= 0; newY-- )
@@ -1528,7 +1693,10 @@ namespace StudentAI
         /// <param name="y">The bishops y location on the board
         ///
         private void AddAllPossibleMovesHorizontal(ref List<ChessMove> allMoves, ref List<ChessMove> allCaptureMoves, ref ChessBoard currentBoard, ChessColor myColor, int x, int y)
-		{
+        {
+#if PROFILE_CODE
+            Profiler.IncrementTagCount((int)MyAIProfilerTags.AddAllPossibleMovesHorizontal);
+#endif
             ChessLocation from = new ChessLocation(x, y);
 			// looking right
 			for ( int newX = x + 1; newX < ChessBoard.NumberOfColumns; newX++ )
